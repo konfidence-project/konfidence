@@ -233,36 +233,21 @@ var _ = Describe("VectorPromotion execution credential propagation", Ordered, Se
 
 	BeforeEach(func() { cleanupPromotions() })
 
-	It("writes credentials from the promotion spec onto the Stage during execution", func() {
-		createLandscapeWithNamespace("cred-exec-landscape", "kden-l-cred-exec")
-		stage := createStage("kden-l-cred-exec", "cred-exec-stage", "")
-		config := createConfig("cred-exec-config",
-			templateSource("some-template"), stageTargetInLandscape("cred-exec-stage", "cred-exec-landscape"))
-
-		creds := &konfidence.Credentials{
-			OCM: &konfidence.OCMCredentials{
-				Refs: []konfidence.CredentialRef{{Name: "exec-ocm-secret"}},
-			},
-		}
-		verifyVec := &konfidence.Verify{
-			Signatures: []konfidence.Signature{{Name: "exec-vector-sig"}},
-		}
-		verifyArt := &konfidence.Verify{
-			Signatures: []konfidence.Signature{{Name: "exec-artifact-sig"}},
-		}
+	It("promotes the vector onto the Stage during execution", func() {
+		createLandscapeWithNamespace("exec-landscape", "kden-l-exec")
+		stage := createStage("kden-l-exec", "exec-stage", "")
+		config := createConfig("exec-config",
+			templateSource("some-template"), stageTargetInLandscape("exec-stage", "exec-landscape"))
 
 		promotion := &konfidence.VectorPromotion{
-			ObjectMeta: metav1.ObjectMeta{Name: "cred-exec-promotion", Namespace: testNamespace},
+			ObjectMeta: metav1.ObjectMeta{Name: "exec-promotion", Namespace: testNamespace},
 			Spec: konfidence.VectorPromotionSpec{
 				VectorPromotionConfigName: config.Name,
 				Source:                    templateSource("some-template"),
-				Target:                    stageTargetInLandscape("cred-exec-stage", "cred-exec-landscape"),
+				Target:                    stageTargetInLandscape("exec-stage", "exec-landscape"),
 				Vector:                    testVector,
 				Sequence:                  nextSequence(),
 				Gates:                     []konfidence.PromotionGate{},
-				Credentials:               creds,
-				VerifyVector:              verifyVec,
-				VerifyArtifacts:           verifyArt,
 			},
 		}
 		Expect(k8sClient.Create(ctx, promotion)).To(Succeed())
@@ -274,33 +259,6 @@ var _ = Describe("VectorPromotion execution credential propagation", Ordered, Se
 		Expect(k8sClient.Get(ctx, types.NamespacedName{
 			Name: stage.Name, Namespace: stage.Namespace,
 		}, stage)).To(Succeed())
-
 		Expect(stage.Spec.Vector).To(Equal(testVector))
-		Expect(stage.Spec.Credentials).NotTo(BeNil())
-		Expect(stage.Spec.Credentials.OCM).NotTo(BeNil())
-		Expect(stage.Spec.Credentials.OCM.Refs).To(ConsistOf(konfidence.CredentialRef{Name: "exec-ocm-secret"}))
-		Expect(stage.Spec.VerifyVector).NotTo(BeNil())
-		Expect(stage.Spec.VerifyVector.Signatures).To(ConsistOf(konfidence.Signature{Name: "exec-vector-sig"}))
-		Expect(stage.Spec.VerifyArtifacts).NotTo(BeNil())
-		Expect(stage.Spec.VerifyArtifacts.Signatures).To(ConsistOf(konfidence.Signature{Name: "exec-artifact-sig"}))
-	})
-
-	It("writes nil credentials onto Stage when the promotion carries none", func() {
-		createLandscapeWithNamespace("nocred-exec-landscape", "kden-l-nocred-exec")
-		stage := createStage("kden-l-nocred-exec", "nocred-exec-stage", "")
-		config := createConfig("nocred-exec-config",
-			templateSource("some-template"), stageTargetInLandscape("nocred-exec-stage", "nocred-exec-landscape"))
-
-		promotion := createPromotionTargeting("nocred-exec-promotion", config.Name,
-			stageTargetInLandscape("nocred-exec-stage", "nocred-exec-landscape"), false)
-
-		reconcilePromotion(promotion.Name)
-
-		Expect(k8sClient.Get(ctx, types.NamespacedName{
-			Name: stage.Name, Namespace: stage.Namespace,
-		}, stage)).To(Succeed())
-		Expect(stage.Spec.Credentials).To(BeNil())
-		Expect(stage.Spec.VerifyVector).To(BeNil())
-		Expect(stage.Spec.VerifyArtifacts).To(BeNil())
 	})
 })

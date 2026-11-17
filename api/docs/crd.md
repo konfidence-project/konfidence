@@ -348,10 +348,7 @@ repository access and signing/verification key material.
 
 
 _Appears in:_
-- [StageSpec](#stagespec)
-- [StageVersionSpec](#stageversionspec)
-- [VectorDeploymentSpec](#vectordeploymentspec)
-- [VectorPromotionSpec](#vectorpromotionspec)
+- [ProjectSpec](#projectspec)
 - [VectorTemplateSpec](#vectortemplatespec)
 
 | Field | Description | Default | Validation |
@@ -832,6 +829,9 @@ _Appears in:_
 | `namespacePolicy` _[NamespacePolicy](#namespacepolicy)_ | NamespacePolicy controls how the project namespace is taken over. Create<br />(the default) creates it and errors on conflict; Adopt takes over an<br />existing namespace and requires both that namespace to already exist and<br />spec.namespace to be set, so the adopted namespace is named explicitly. It<br />is immutable once the Project exists, because it only governs how the<br />namespace is first acquired and has no effect once ownership is settled. | Create | Enum: [Create Adopt] <br />Optional: \{\} <br /> |
 | `deletionPolicy` _[DeletionPolicy](#deletionpolicy)_ | DeletionPolicy controls what happens to the project namespace when the<br />Project is deleted. Orphan (the default) keeps the namespace and strips<br />its management labels; Delete removes the namespace with the Project. | Orphan | Enum: [Delete Orphan] <br />Optional: \{\} <br /> |
 | `roleBindings` _object (keys:string, values:[Subjects](#subjects))_ | RoleBindings grants project roles to callers. It maps a role name to the<br />list of subjects that hold that role; a caller holds the role if any<br />subject in the list matches (OR). The role names are a fixed, well-known<br />set for now (for example "admin", "pm", "dev"), but the field is a map so<br />the set can be extended without a schema change. See the Project<br />multi-tenancy ADR for the meaning of each role and the authorization flow.<br />RoleBindings is currently schema-only: no authorization is enforced yet. |  | MaxProperties: 32 <br />Optional: \{\} <br /> |
+| `credentials` _[Credentials](#credentials)_ | Credentials supplies credentials for OCM repositories accessed within this project.<br />Secrets must be in the project namespace. If omitted, the OCM client runs<br />unauthenticated (suitable for public registries). |  | Optional: \{\} <br /> |
+| `verifyVector` _[Verify](#verify)_ | VerifyVector lists candidate signatures evaluated against deployment vectors<br />fetched for this project. If omitted, vector signature verification is disabled. |  | Optional: \{\} <br /> |
+| `verifyArtifacts` _[Verify](#verify)_ | VerifyArtifacts lists candidate signatures evaluated against every artifact<br />referenced by deployment vectors in this project. If omitted, artifact<br />signature verification is disabled. |  | Optional: \{\} <br /> |
 
 
 ### ProjectStatus
@@ -1109,9 +1109,6 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `vector` _string_ | Vector points to the OCM component version that contains the deployment vector for this stage. |  | MinLength: 1 <br />Optional: \{\} <br /> |
-| `credentials` _[Credentials](#credentials)_ | Credentials supplies credentials for OCM repositories accessed when deploying this stage's vector.<br />Written by the promotion execution controller; not user-settable. |  | Optional: \{\} <br /> |
-| `verifyVector` _[Verify](#verify)_ | VerifyVector lists candidate signatures evaluated against this stage's deployment vector.<br />Written by the promotion execution controller; not user-settable. |  | Optional: \{\} <br /> |
-| `verifyArtifacts` _[Verify](#verify)_ | VerifyArtifacts lists candidate signatures evaluated against every artifact in this stage's vector.<br />Written by the promotion execution controller; not user-settable. |  | Optional: \{\} <br /> |
 
 
 ### StageStatus
@@ -1208,9 +1205,6 @@ _Appears in:_
 | `vector` _string_ | Vector points to the OCM component version that contains the deployment vector for this stage. |  | MinLength: 1 <br /> |
 | `stageGeneration` _integer_ | the object generation of the stage that created this stage version |  | Minimum: 1 <br /> |
 | `stageRef` _[StageReference](#stagereference)_ | stageRef references the Stage this StageVersion belongs to |  |  |
-| `credentials` _[Credentials](#credentials)_ | Credentials supplies credentials for OCM repositories accessed when deploying this stage version's vector.<br />Propagated from the Stage at StageVersion creation time. |  | Optional: \{\} <br /> |
-| `verifyVector` _[Verify](#verify)_ | VerifyVector lists candidate signatures evaluated against this stage version's deployment vector.<br />Propagated from the Stage at StageVersion creation time. |  | Optional: \{\} <br /> |
-| `verifyArtifacts` _[Verify](#verify)_ | VerifyArtifacts lists candidate signatures evaluated against every artifact in this stage version's vector.<br />Propagated from the Stage at StageVersion creation time. |  | Optional: \{\} <br /> |
 
 
 ### StageVersionStatus
@@ -1690,9 +1684,6 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `vector` _string_ | Vector is a fully qualified URL pointing to an OCM ComponentVersion stored in an OCI registry. The referenced<br />component contains the deployment vector, which includes the complete list of artifacts and their versions. |  |  |
-| `credentials` _[Credentials](#credentials)_ | Credentials supplies credentials for OCM repositories accessed during vector deployment.<br />Secrets must be in the same namespace as the VectorDeployment.<br />If omitted, the OCM client runs unauthenticated (suitable for public registries). |  | Optional: \{\} <br /> |
-| `verifyVector` _[Verify](#verify)_ | VerifyVector lists candidate signatures evaluated against the deployment vector<br />fetched from the OCM registry. If omitted, vector signature verification is disabled. |  | Optional: \{\} <br /> |
-| `verifyArtifacts` _[Verify](#verify)_ | VerifyArtifacts lists candidate signatures evaluated against every artifact<br />referenced by the deployment vector. If omitted, artifact signature verification is disabled. |  | Optional: \{\} <br /> |
 
 
 ### VectorDeploymentStatus
@@ -1937,9 +1928,6 @@ _Appears in:_
 | `vector` _string_ | Vector is the concrete OCM component version reference<br />(`<registry>//<component>:<version>`) pinned when the promotion was created. |  | MinLength: 1 <br /> |
 | `gates` _[PromotionGate](#promotiongate) array_ | Gates is an immutable snapshot of the config's gates at creation time.<br />The promotion does not execute until every gate has a `Satisfied` entry<br />in `status.gates`. An empty list promotes immediately. The field is<br />required: creators set an empty list rather than omitting it. |  | MaxItems: 32 <br /> |
 | `sequence` _integer_ | Sequence is a monotonic ordinal assigned by the creator (the config<br />reconciler, from the config's `status.sequence`). It is the sole<br />ordering between promotions of the same config; creation timestamps<br />only have second resolution and are never consulted. |  | Minimum: 0 <br /> |
-| `credentials` _[Credentials](#credentials)_ | Credentials is a snapshot of the source VectorTemplate's credential<br />configuration at promotion creation time, carried forward so the<br />execution controller can write them to the target Stage without<br />re-reading the VectorTemplate. |  | Optional: \{\} <br /> |
-| `verifyVector` _[Verify](#verify)_ | VerifyVector is a snapshot of the source VectorTemplate's vector<br />signature verification configuration at promotion creation time. |  | Optional: \{\} <br /> |
-| `verifyArtifacts` _[Verify](#verify)_ | VerifyArtifacts is a snapshot of the source VectorTemplate's artifact<br />signature verification configuration at promotion creation time. |  | Optional: \{\} <br /> |
 
 
 ### VectorPromotionStatus
@@ -2132,10 +2120,7 @@ descriptor. Absence on a spec disables verification.
 
 
 _Appears in:_
-- [StageSpec](#stagespec)
-- [StageVersionSpec](#stageversionspec)
-- [VectorDeploymentSpec](#vectordeploymentspec)
-- [VectorPromotionSpec](#vectorpromotionspec)
+- [ProjectSpec](#projectspec)
 - [VectorTemplateSpec](#vectortemplatespec)
 
 | Field | Description | Default | Validation |

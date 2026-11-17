@@ -35,21 +35,6 @@ type StageSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	// +optional
 	Vector string `json:"vector,omitempty"`
-
-	// Credentials supplies credentials for OCM repositories accessed when deploying this stage's vector.
-	// Written by the promotion execution controller; not user-settable.
-	// +optional
-	Credentials *Credentials `json:"credentials,omitempty"`
-
-	// VerifyVector lists candidate signatures evaluated against this stage's deployment vector.
-	// Written by the promotion execution controller; not user-settable.
-	// +optional
-	VerifyVector *Verify `json:"verifyVector,omitempty"`
-
-	// VerifyArtifacts lists candidate signatures evaluated against every artifact in this stage's vector.
-	// Written by the promotion execution controller; not user-settable.
-	// +optional
-	VerifyArtifacts *Verify `json:"verifyArtifacts,omitempty"`
 }
 
 // StageStatus defines the observed state of Stage.

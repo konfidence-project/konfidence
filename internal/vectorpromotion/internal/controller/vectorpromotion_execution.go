@@ -103,9 +103,6 @@ func (r *VectorPromotionReconciler) promoteStage(ctx context.Context, stage *kon
 	original := stage.DeepCopy()
 	previousVector := stage.Spec.Vector
 	stage.Spec.Vector = vectorPromotion.Spec.Vector
-	stage.Spec.Credentials = vectorPromotion.Spec.Credentials
-	stage.Spec.VerifyVector = vectorPromotion.Spec.VerifyVector
-	stage.Spec.VerifyArtifacts = vectorPromotion.Spec.VerifyArtifacts
 	if stage.Annotations == nil {
 		stage.Annotations = map[string]string{}
 	}

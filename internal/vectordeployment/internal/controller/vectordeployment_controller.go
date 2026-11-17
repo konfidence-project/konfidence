@@ -105,6 +105,8 @@ func (l *artifactManifestDownloadLimiter) acquire(ctx context.Context) (func(), 
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectordeployments/finalizers,verbs=update
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=artifactdeployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectordata,verbs=get;list;watch;create;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=projects,verbs=get
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 

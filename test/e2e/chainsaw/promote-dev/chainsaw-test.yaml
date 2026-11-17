@@ -149,10 +149,6 @@ spec:
               metadata: {namespace: kden-l-dev, labels: {konfidence.cloud/stage-version-name: ($stageVersion)}}
               spec:
                 vector: ($vector)
-                credentials:
-                  ocm:
-                    refs:
-                      - name: registry-credentials
               status:
                 (conditions[?type == 'Ready']): [{status: "True"}]
                 (length(resultingArtifactDeployments)): 2

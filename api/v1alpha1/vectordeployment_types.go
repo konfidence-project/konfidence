@@ -59,22 +59,6 @@ type VectorDeploymentSpec struct {
 	// Vector is a fully qualified URL pointing to an OCM ComponentVersion stored in an OCI registry. The referenced
 	// component contains the deployment vector, which includes the complete list of artifacts and their versions.
 	Vector string `json:"vector"`
-
-	// Credentials supplies credentials for OCM repositories accessed during vector deployment.
-	// Secrets must be in the same namespace as the VectorDeployment.
-	// If omitted, the OCM client runs unauthenticated (suitable for public registries).
-	// +optional
-	Credentials *Credentials `json:"credentials,omitempty"`
-
-	// VerifyVector lists candidate signatures evaluated against the deployment vector
-	// fetched from the OCM registry. If omitted, vector signature verification is disabled.
-	// +optional
-	VerifyVector *Verify `json:"verifyVector,omitempty"`
-
-	// VerifyArtifacts lists candidate signatures evaluated against every artifact
-	// referenced by the deployment vector. If omitted, artifact signature verification is disabled.
-	// +optional
-	VerifyArtifacts *Verify `json:"verifyArtifacts,omitempty"`
 }
 
 // VectorDeploymentStatus represents the observed state of a VectorDeployment as it progresses through the

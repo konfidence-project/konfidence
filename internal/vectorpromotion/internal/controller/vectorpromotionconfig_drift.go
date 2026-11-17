@@ -19,7 +19,7 @@ import (
 // drifted source vector, unless the newest promotion already pins it.
 func (r *VectorPromotionConfigReconciler) createPromotionForDrift(
 	ctx context.Context, config *konfidence.VectorPromotionConfig,
-	sourceVector string, sourceTemplate *konfidence.VectorTemplate, promotions []konfidence.VectorPromotion,
+	sourceVector string, promotions []konfidence.VectorPromotion,
 ) error {
 	log := logf.FromContext(ctx)
 
@@ -46,18 +46,6 @@ func (r *VectorPromotionConfigReconciler) createPromotionForDrift(
 		gates = []konfidence.PromotionGate{}
 	}
 
-	// Snapshot credentials and verification config from the source VectorTemplate
-	// so the execution controller can write them to the target Stage without
-	// re-reading the template. Nil for Stage sources.
-	var credentials *konfidence.Credentials
-	var verifyVector *konfidence.Verify
-	var verifyArtifacts *konfidence.Verify
-	if sourceTemplate != nil {
-		credentials = sourceTemplate.Spec.Credentials
-		verifyVector = sourceTemplate.Spec.VerifyVector
-		verifyArtifacts = sourceTemplate.Spec.VerifyArtifacts
-	}
-
 	vectorPromotion := &konfidence.VectorPromotion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      promotionName(config.Name, config.Status.Sequence),
@@ -70,9 +58,6 @@ func (r *VectorPromotionConfigReconciler) createPromotionForDrift(
 			Vector:                    sourceVector,
 			Gates:                     gates,
 			Sequence:                  config.Status.Sequence,
-			Credentials:               credentials,
-			VerifyVector:              verifyVector,
-			VerifyArtifacts:           verifyArtifacts,
 		},
 	}
 	if err := controllerutil.SetControllerReference(config, vectorPromotion, r.Scheme); err != nil {

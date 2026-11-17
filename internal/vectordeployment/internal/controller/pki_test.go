@@ -10,6 +10,7 @@ import (
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectordeployment"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"github.com/konfidence-project/konfidence/pkg/ocm/credentials"
 	cryptopkg "github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
@@ -104,8 +105,32 @@ var _ = Describe("VectorDeployment pki enabled", Ordered, Serial, func() {
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 		gomega.Expect(pkiK8sClient.Create(pkiCtx, &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{Name: pkiTestNamespace},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   pkiTestNamespace,
+				Labels: map[string]string{pkgctrl.ProjectNameLabel: "pki-project"},
+			},
 		})).To(gomega.Succeed())
+
+		// Create a Project CR so the AdapterFactory can resolve credentials and
+		// verify specs from project.Spec rather than VectorDeployment.Spec.
+		pkiProject := &konfidence.Project{
+			ObjectMeta: metav1.ObjectMeta{Name: "pki-project"},
+			Spec: konfidence.ProjectSpec{
+				Credentials: &konfidence.Credentials{
+					OCM: &konfidence.OCMCredentials{
+						Refs: []konfidence.CredentialRef{
+							{Name: pkiOCISecretName},
+							{Name: pkiSigningSecret},
+						},
+					},
+				},
+				VerifyVector:    &konfidence.Verify{Signatures: []konfidence.Signature{{Name: pkiVectorSigName}}},
+				VerifyArtifacts: &konfidence.Verify{Signatures: []konfidence.Signature{{Name: pkiArtifactSigName}}},
+			},
+		}
+		gomega.Expect(pkiK8sClient.Create(pkiCtx, pkiProject)).To(gomega.Succeed())
+		pkiProject.Status.Namespace = pkiTestNamespace
+		gomega.Expect(pkiK8sClient.Status().Update(pkiCtx, pkiProject)).To(gomega.Succeed())
 
 		gomega.Expect(pkiK8sClient.Create(pkiCtx, testocm.OCMConfigSecret(pkiSigningSecret, pkiTestNamespace,
 			testocm.Bind(pkiVectorSigName, pkiVectorKey),
@@ -153,16 +178,6 @@ var _ = Describe("VectorDeployment pki enabled", Ordered, Serial, func() {
 		vectorURL := fmt.Sprintf("http://%s//github.com/konfidence-project/pki-test/vector-signed:v1.0.0", pkiRegistryEndpoint)
 		vd := createVectorDeployment(pkiCtx, pkiK8sClient, "vd-pki-signed", pkiTestNamespace, konfidence.VectorDeploymentSpec{
 			Vector: vectorURL,
-			Credentials: &konfidence.Credentials{
-				OCM: &konfidence.OCMCredentials{
-					Refs: []konfidence.CredentialRef{
-						{Name: pkiOCISecretName},
-						{Name: pkiSigningSecret},
-					},
-				},
-			},
-			VerifyVector:    &konfidence.Verify{Signatures: []konfidence.Signature{{Name: pkiVectorSigName}}},
-			VerifyArtifacts: &konfidence.Verify{Signatures: []konfidence.Signature{{Name: pkiArtifactSigName}}},
 		})
 
 		actualVD := &konfidence.VectorDeployment{}
@@ -175,13 +190,6 @@ var _ = Describe("VectorDeployment pki enabled", Ordered, Serial, func() {
 	It("should not set VectorDownloadedCondition when vector has no signature", func() {
 		vd := pushUnsignedVectorAndCreateDeployment(pkiCtx, pkiOCMClient, pkiK8sClient,
 			pkiRegistryEndpoint, "pki-test", "vector-unsigned", pkiTestNamespace,
-			&konfidence.Credentials{
-				OCM: &konfidence.OCMCredentials{
-					Refs: []konfidence.CredentialRef{{Name: pkiOCISecretName}},
-				},
-			},
-			&konfidence.Verify{Signatures: []konfidence.Signature{{Name: pkiVectorSigName}}},
-			&konfidence.Verify{Signatures: []konfidence.Signature{{Name: pkiArtifactSigName}}},
 		)
 
 		actualVD := &konfidence.VectorDeployment{}
@@ -261,8 +269,27 @@ var _ = Describe("VectorDeployment pki disabled", Ordered, Serial, func() {
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 		gomega.Expect(noVerifyK8sClient.Create(noVerifyCtx, &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{Name: noVerifyNamespace},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   noVerifyNamespace,
+				Labels: map[string]string{pkgctrl.ProjectNameLabel: "no-verify-project"},
+			},
 		})).To(gomega.Succeed())
+
+		// Create a Project CR so the AdapterFactory can resolve credentials from
+		// project.Spec. No VerifyVector/VerifyArtifacts — verification is disabled.
+		noVerifyProject := &konfidence.Project{
+			ObjectMeta: metav1.ObjectMeta{Name: "no-verify-project"},
+			Spec: konfidence.ProjectSpec{
+				Credentials: &konfidence.Credentials{
+					OCM: &konfidence.OCMCredentials{
+						Refs: []konfidence.CredentialRef{{Name: noVerifyOCISecretName}},
+					},
+				},
+			},
+		}
+		gomega.Expect(noVerifyK8sClient.Create(noVerifyCtx, noVerifyProject)).To(gomega.Succeed())
+		noVerifyProject.Status.Namespace = noVerifyNamespace
+		gomega.Expect(noVerifyK8sClient.Status().Update(noVerifyCtx, noVerifyProject)).To(gomega.Succeed())
 
 		gomega.Expect(noVerifyK8sClient.Create(noVerifyCtx, testocm.DockerConfigSecret(noVerifyOCISecretName, noVerifyNamespace,
 			"user", "password", noVerifyRegistryEndpoint,
@@ -295,12 +322,6 @@ var _ = Describe("VectorDeployment pki disabled", Ordered, Serial, func() {
 	It("should set VectorDownloadedCondition=True for an unsigned vector when verification is disabled", func() {
 		vd := pushUnsignedVectorAndCreateDeployment(noVerifyCtx, noVerifyOCMClient, noVerifyK8sClient,
 			noVerifyRegistryEndpoint, "no-verify-test", "vector", noVerifyNamespace,
-			&konfidence.Credentials{
-				OCM: &konfidence.OCMCredentials{
-					Refs: []konfidence.CredentialRef{{Name: noVerifyOCISecretName}},
-				},
-			},
-			nil, nil,
 		)
 
 		actualVD := &konfidence.VectorDeployment{}
@@ -338,9 +359,6 @@ func createVectorDeployment(
 func pushUnsignedVectorAndCreateDeployment(
 	ctx context.Context, ocmClient pkgocm.Client, k8sClient client.Client,
 	registryEndpoint, project, vectorName, namespace string,
-	creds *konfidence.Credentials,
-	verifyVector *konfidence.Verify,
-	verifyArtifacts *konfidence.Verify,
 ) *konfidence.VectorDeployment {
 	artifactRef := testocm.ParseRef(registryEndpoint, fmt.Sprintf("github.com/konfidence-project/%s/artifact:v1.0.0", project))
 	vectorRef := testocm.ParseRef(registryEndpoint, fmt.Sprintf("github.com/konfidence-project/%s/%s:v1.0.0", project, vectorName))
@@ -349,10 +367,7 @@ func pushUnsignedVectorAndCreateDeployment(
 	vectorURL := fmt.Sprintf("http://%s//github.com/konfidence-project/%s/%s:v1.0.0", registryEndpoint, project, vectorName)
 	return createVectorDeployment(ctx, k8sClient, fmt.Sprintf("vd-%s-%s", project, vectorName), namespace,
 		konfidence.VectorDeploymentSpec{
-			Vector:          vectorURL,
-			Credentials:     creds,
-			VerifyVector:    verifyVector,
-			VerifyArtifacts: verifyArtifacts,
+			Vector: vectorURL,
 		},
 	)
 }

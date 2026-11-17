@@ -37,21 +37,6 @@ type StageVersionSpec struct {
 	// stageRef references the Stage this StageVersion belongs to
 	// +kubebuilder:validation:required
 	StageRef *StageReference `json:"stageRef"`
-
-	// Credentials supplies credentials for OCM repositories accessed when deploying this stage version's vector.
-	// Propagated from the Stage at StageVersion creation time.
-	// +optional
-	Credentials *Credentials `json:"credentials,omitempty"`
-
-	// VerifyVector lists candidate signatures evaluated against this stage version's deployment vector.
-	// Propagated from the Stage at StageVersion creation time.
-	// +optional
-	VerifyVector *Verify `json:"verifyVector,omitempty"`
-
-	// VerifyArtifacts lists candidate signatures evaluated against every artifact in this stage version's vector.
-	// Propagated from the Stage at StageVersion creation time.
-	// +optional
-	VerifyArtifacts *Verify `json:"verifyArtifacts,omitempty"`
 }
 
 // StageVersionStatus defines the observed state of StageVersion.

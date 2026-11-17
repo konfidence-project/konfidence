@@ -9,10 +9,13 @@ import (
 
 	"github.com/go-logr/logr"
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/konfidence-project/konfidence/internal/vectordeployment/internal/controller"
 	vdocm "github.com/konfidence-project/konfidence/internal/vectordeployment/internal/ocm"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	pkgcredentials "github.com/konfidence-project/konfidence/pkg/ocm/credentials"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
@@ -83,20 +86,36 @@ func SetupControllers(ctx context.Context, mgr manager.Manager, logger logr.Logg
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorder(controller.VectorDeploymentControllerName),
 		AdapterFactory: func(ctx context.Context, vd *konfidence.VectorDeployment) (controller.VectorOcmPort, error) {
-			resolver, err := pkgcredentials.ResolverFromCredentials(ctx, k8sReader, vd.Namespace, vd.Spec.Credentials)
+			ns := &corev1.Namespace{}
+			if err := k8sReader.Get(ctx, types.NamespacedName{Name: vd.Namespace}, ns); err != nil {
+				return nil, fmt.Errorf("get namespace %q: %w", vd.Namespace, err)
+			}
+			projectName := ns.Labels[pkgctrl.ProjectNameLabel]
+			if projectName == "" {
+				return nil, fmt.Errorf("namespace %q is missing label %s", vd.Namespace, pkgctrl.ProjectNameLabel)
+			}
+			project := &konfidence.Project{}
+			if err := k8sReader.Get(ctx, types.NamespacedName{Name: projectName}, project); err != nil {
+				return nil, fmt.Errorf("get project %q: %w", projectName, err)
+			}
+			projectNamespace := project.Status.Namespace
+			if projectNamespace == "" {
+				return nil, fmt.Errorf("project %q has no namespace configured", projectName)
+			}
+			resolver, err := pkgcredentials.ResolverFromCredentials(ctx, k8sReader, projectNamespace, project.Spec.Credentials)
 			if err != nil {
-				return nil, fmt.Errorf("resolve OCM credentials for namespace %q: %w", vd.Namespace, err)
+				return nil, fmt.Errorf("resolve OCM credentials for project %q: %w", projectName, err)
 			}
 			ocmClient, err := pkgocm.NewOciClientBuilder().
 				WithLogger(logger).
 				WithResolver(resolver).
 				Build(ctx)
 			if err != nil {
-				return nil, fmt.Errorf("build OCI client for namespace %q: %w", vd.Namespace, err)
+				return nil, fmt.Errorf("build OCI client for project %q: %w", projectName, err)
 			}
 			return vdocm.NewOCMAdapter(ocmClient, resolver, verifier,
-				crypto.SpecsFromVerify(vd.Spec.VerifyVector),
-				crypto.SpecsFromVerify(vd.Spec.VerifyArtifacts),
+				crypto.SpecsFromVerify(project.Spec.VerifyVector),
+				crypto.SpecsFromVerify(project.Spec.VerifyArtifacts),
 			), nil
 		},
 		MaxArtifactManifestDownloadsPerDeployment: manifestDownloadsPerDeployment,
