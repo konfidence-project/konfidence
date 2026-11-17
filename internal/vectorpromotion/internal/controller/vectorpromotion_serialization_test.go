@@ -43,7 +43,7 @@ var _ = Describe("VectorPromotion serialization", Ordered, Serial, func() {
 		Expect(observedState(newer)).To(Equal("Succeeded"))
 	})
 
-	It("supersedes stale approved siblings before executing", func() {
+	It("lets an older promotion supersede itself after the newer promotion executes", func() {
 		createLandscapeWithNamespace("exec-stale-landscape", "kden-l-exec-stale")
 		createStage("kden-l-exec-stale", "stale-stage", "registry.example//konfidence.io/promo/app:0.9.0")
 		config := createConfig("exec-stale-config",
@@ -55,12 +55,23 @@ var _ = Describe("VectorPromotion serialization", Ordered, Serial, func() {
 		approvePromotion(older)
 		approvePromotion(newer)
 
-		By("reconciling the newest supersedes the older sibling and executes")
+		By("reconciling the newest executes without writing the older sibling")
+		refreshPromotion(older)
+		before := older.DeepCopy()
 		reconcilePromotion(newer.Name)
 		refreshPromotion(newer)
 		refreshPromotion(older)
 		Expect(observedState(newer)).To(Equal("Succeeded"))
+		Expect(older).To(Equal(before))
+
+		By("the older promotion observes the finished newer sibling and supersedes itself")
+		reconcilePromotion(older.Name)
+		refreshPromotion(older)
 		Expect(observedState(older)).To(Equal("Superseded"))
+		finished := older.DeepCopy()
+		reconcilePromotion(older.Name)
+		refreshPromotion(older)
+		Expect(older).To(Equal(finished))
 	})
 
 	It("requeues while a sibling promotion has started", func() {

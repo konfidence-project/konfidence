@@ -1821,7 +1821,6 @@ spec:
   gates:
     - type: explicit-approval.konfidence.cloud
   sequence: 1
-  ttlAfterFinished: 1h
 ```
 
 ### VectorPromotionConfig
@@ -1863,7 +1862,6 @@ spec:
     landscape: sample-landscape
   gates:
     - type: explicit-approval.konfidence.cloud
-  ttlAfterFinished: 1h
   keepLastPromotions: 10
   keepOutstandingPromotions: 10
 ```
@@ -1884,8 +1882,7 @@ _Appears in:_
 | `source` _[PromotionSourceReference](#promotionsourcereference)_ | Source references the resource to promote from. |  |  |
 | `target` _[PromotionTargetReference](#promotiontargetreference)_ | Target references the Stage to promote to. |  |  |
 | `gates` _[PromotionGate](#promotiongate) array_ | Gates declares the gates every promotion created from this config must<br />pass before it executes. The list is snapshotted into each promotion at<br />creation; later edits only affect promotions created afterwards. An<br />empty list promotes immediately. |  | MaxItems: 32 <br />Optional: \{\} <br /> |
-| `ttlAfterFinished` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | TTLAfterFinished will be copied onto every VectorPromotion the drift<br />controller creates for this config. See<br />`VectorPromotionSpec.TTLAfterFinished`. |  | Optional: \{\} <br /> |
-| `keepLastPromotions` _integer_ | KeepLastPromotions bounds how many terminal VectorPromotions are<br />retained per config; the oldest beyond the bound are deleted. Retention<br />by count keeps an audit trail even when `ttlAfterFinished` is short.<br />Non-terminal promotions are never deleted and do not count toward the<br />bound. | 10 | Minimum: 0 <br />Optional: \{\} <br /> |
+| `keepLastPromotions` _integer_ | KeepLastPromotions keeps the newest terminal VectorPromotions per config<br />among those older than every non-terminal promotion. Cleanup of newer or<br />equal-sequence terminal promotions is deferred until older promotions finish;<br />they do not count toward this bound. With no non-terminal promotions, the<br />bound applies to all terminal promotions. A value of 0 deletes all eligible<br />terminal promotions. Non-terminal promotions are never deleted. | 10 | Minimum: 0 <br />Optional: \{\} <br /> |
 | `keepOutstandingPromotions` _integer_ | KeepOutstandingPromotions bounds how many gated and not yet processed VectorPromotions are<br />retained per config; the oldest beyond the bound are set to the terminal state "Superseded".<br />A value of 0 disables the bound and retains unlimited outstanding promotions. | 10 | Minimum: 0 <br />Optional: \{\} <br /> |
 
 
@@ -1926,7 +1923,6 @@ _Appears in:_
 | `target` _[PromotionTargetReference](#promotiontargetreference)_ | Target is a snapshot of the config's target reference at creation time.<br />Execution resolves and writes this target: approving a promotion approves<br />exactly this destination, regardless of later config edits. |  |  |
 | `vector` _string_ | Vector is the concrete OCM component version reference<br />(`<registry>//<component>:<version>`) pinned when the promotion was created. |  | MinLength: 1 <br /> |
 | `gates` _[PromotionGate](#promotiongate) array_ | Gates is an immutable snapshot of the config's gates at creation time.<br />The promotion does not execute until every gate has a `Satisfied` entry<br />in `status.gates`. An empty list promotes immediately. The field is<br />required: creators set an empty list rather than omitting it. |  | MaxItems: 32 <br /> |
-| `ttlAfterFinished` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | TTLAfterFinished defines how long the VectorPromotion should be kept after completion.<br />Once the TTL expires after the promotion finished (`status.completionTime`),<br />the resource is eligible for automatic deletion. If no TTL is set, no deletion happens. |  | Optional: \{\} <br /> |
 | `sequence` _integer_ | Sequence is a monotonic ordinal assigned by the creator (the config<br />reconciler, from the config's `status.sequence`). It is the sole<br />ordering between promotions of the same config; creation timestamps<br />only have second resolution and are never consulted. |  | Minimum: 0 <br /> |
 
 

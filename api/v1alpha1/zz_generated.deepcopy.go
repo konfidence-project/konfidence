@@ -2161,11 +2161,6 @@ func (in *VectorPromotionConfigSpec) DeepCopyInto(out *VectorPromotionConfigSpec
 		*out = make([]PromotionGate, len(*in))
 		copy(*out, *in)
 	}
-	if in.TTLAfterFinished != nil {
-		in, out := &in.TTLAfterFinished, &out.TTLAfterFinished
-		*out = new(v1.Duration)
-		**out = **in
-	}
 	if in.KeepLastPromotions != nil {
 		in, out := &in.KeepLastPromotions, &out.KeepLastPromotions
 		*out = new(int32)
@@ -2265,11 +2260,6 @@ func (in *VectorPromotionSpec) DeepCopyInto(out *VectorPromotionSpec) {
 		in, out := &in.Gates, &out.Gates
 		*out = make([]PromotionGate, len(*in))
 		copy(*out, *in)
-	}
-	if in.TTLAfterFinished != nil {
-		in, out := &in.TTLAfterFinished, &out.TTLAfterFinished
-		*out = new(v1.Duration)
-		**out = **in
 	}
 }
 

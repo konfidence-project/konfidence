@@ -938,8 +938,6 @@ components:
           description: Gates every promotion created from this config must pass.
           items:
             $ref: "#/components/schemas/PromotionGate"
-        ttlAfterFinished:
-          type: string
         keepLastPromotions:
           type: integer
         promotions:
@@ -962,8 +960,6 @@ components:
         status:
           type: string
           enum: [Waiting, Ready, InProgress, Blocked, Succeeded, Superseded, Rejected]
-        ttlAfterFinished:
-          type: string
         sequence:
           type: integer
           format: int64

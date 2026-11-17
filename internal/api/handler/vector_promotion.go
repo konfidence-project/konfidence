@@ -128,11 +128,6 @@ func toVectorPromotionResponse(p konfidence.VectorPromotion) openapi.VectorPromo
 	status := displayState(&p)
 	promotion.Status = &status
 
-	if p.Spec.TTLAfterFinished != nil {
-		ttl := p.Spec.TTLAfterFinished.Duration.String()
-		promotion.TtlAfterFinished = &ttl
-	}
-
 	if len(p.Spec.Gates) > 0 {
 		gates := toPromotionGateStatusesResponse(&p)
 		promotion.Gates = &gates

@@ -71,11 +71,6 @@ func toVectorPromotionConfigResponse(c konfidence.VectorPromotionConfig,
 		config.Gates = &gates
 	}
 
-	if c.Spec.TTLAfterFinished != nil {
-		ttl := c.Spec.TTLAfterFinished.Duration.String()
-		config.TtlAfterFinished = &ttl
-	}
-
 	if c.Spec.KeepLastPromotions != nil {
 		keepLast := int(*c.Spec.KeepLastPromotions)
 		config.KeepLastPromotions = &keepLast

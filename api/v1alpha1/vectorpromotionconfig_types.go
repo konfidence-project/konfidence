@@ -41,17 +41,12 @@ type VectorPromotionConfigSpec struct {
 	// +optional
 	Gates []PromotionGate `json:"gates,omitempty"`
 
-	// TTLAfterFinished will be copied onto every VectorPromotion the drift
-	// controller creates for this config. See
-	// `VectorPromotionSpec.TTLAfterFinished`.
-	// +optional
-	TTLAfterFinished *metav1.Duration `json:"ttlAfterFinished,omitempty"`
-
-	// KeepLastPromotions bounds how many terminal VectorPromotions are
-	// retained per config; the oldest beyond the bound are deleted. Retention
-	// by count keeps an audit trail even when `ttlAfterFinished` is short.
-	// Non-terminal promotions are never deleted and do not count toward the
-	// bound.
+	// KeepLastPromotions keeps the newest terminal VectorPromotions per config
+	// among those older than every non-terminal promotion. Cleanup of newer or
+	// equal-sequence terminal promotions is deferred until older promotions finish;
+	// they do not count toward this bound. With no non-terminal promotions, the
+	// bound applies to all terminal promotions. A value of 0 deletes all eligible
+	// terminal promotions. Non-terminal promotions are never deleted.
 	// +kubebuilder:default=10
 	// +kubebuilder:validation:Minimum=0
 	// +optional

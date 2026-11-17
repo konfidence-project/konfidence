@@ -195,12 +195,6 @@ spec:
                 x-kubernetes-validations:
                 - message: target is immutable after it has been set
                   rule: self == oldSelf
-              ttlAfterFinished:
-                description: |-
-                  TTLAfterFinished defines how long the VectorPromotion should be kept after completion.
-                  Once the TTL expires after the promotion finished (`status.completionTime`),
-                  the resource is eligible for automatic deletion. If no TTL is set, no deletion happens.
-                type: string
               vector:
                 description: |-
                   Vector is the concrete OCM component version reference
