@@ -26,7 +26,7 @@
     </span>
     {#snippet actions()}
         {#if promotion.gates}<GateProgress gates={promotion.gates} />{/if}
-        {#if isActionable(promotion)}<PromotionActions explain={false} />{/if}
+        {#if isActionable(promotion)}<PromotionActions />{/if}
     {/snippet}
 </SelectableRow>
 </div>
