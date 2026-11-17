@@ -23,6 +23,10 @@ var (
 	versionRegex = regexp.MustCompile(VersionRegex)
 )
 
+func IsSemver(version string) bool {
+	return versionRegex.MatchString(version)
+}
+
 // ComponentVersionReference is a component version reference without exposing
 // upstream OCM repository types.
 type ComponentVersionReference struct {

@@ -48,6 +48,8 @@ Kubernetes: `>=1.27.0-0`
 | api.migrations.enabled | bool | `true` | Run the migration Job. Disable only when you apply migrations outside the chart. |
 | api.migrations.hookWeight | string | `"0"` | Helm hook weight relative to other pre-install/pre-upgrade hooks. Lower values run first. |
 | api.migrations.resources | object | `{}` | Resource requests and limits for the migration Job container. |
+| api.ocmCache.size | int | `500` | Maximum number of cached OCM content entries (LRU capacity). Set to 0 to disable the cache and read from the registry on every request. |
+| api.ocmCache.tagTTL | string | `"5m"` | How long entries for mutable alias tags (e.g. "latest", "main") are served before a refetch. Digest-pinned and semver refs never expire. |
 | api.oidc.allowedReturnHosts | list | `[]` | Hostnames permitted for absolute redirects after login, matched exactly on any port. When empty, only root-relative return paths are accepted. |
 | api.oidc.authorizationURL | string | `""` | Authorization endpoint. Defaults to the discovery document when empty. |
 | api.oidc.clientId | string | `""` | OAuth client id registered at the provider. |
