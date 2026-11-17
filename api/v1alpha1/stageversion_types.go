@@ -17,6 +17,9 @@ const (
 	// VectorActivatedCondition indicates that the vector has been activated in the stage.
 	VectorActivatedCondition = "VectorActivated"
 
+	// StageVersionFailedCondition indicates a terminal rollout failure.
+	StageVersionFailedCondition = "Failed"
+
 	// StageVersionReady indicates that the stage version is ready for use.
 	StageVersionReady = "Ready"
 )

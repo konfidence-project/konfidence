@@ -14,6 +14,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/vectordeployment"
 	"github.com/konfidence-project/konfidence/internal/vectorpromotion"
 	pkgcmd "github.com/konfidence-project/konfidence/pkg/cmd"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	"github.com/konfidence-project/konfidence/pkg/operator"
 	"github.com/spf13/cobra"
@@ -39,6 +40,10 @@ func controllerDomains() []operator.Domain {
 }
 
 func startOperator(_ *cobra.Command, _ []string) error {
+	excludedNamespaces, err := pkgctrl.ParseNamespaceExclusions(excludedNamespacesSpec)
+	if err != nil {
+		return err
+	}
 	mgrOptions := ctrl.Options{
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
@@ -96,11 +101,12 @@ func startOperator(_ *cobra.Command, _ []string) error {
 	}
 
 	deps := operator.Deps{
-		Mgr:      mgr,
-		Logger:   setupLog,
-		Limiter:  limiter,
-		Verifier: sharedVerifier,
-		Shutdown: cancel,
+		ExcludedNamespaces: excludedNamespaces,
+		Mgr:                mgr,
+		Logger:             setupLog,
+		Limiter:            limiter,
+		Verifier:           sharedVerifier,
+		Shutdown:           cancel,
 	}
 
 	for _, domain := range domains {

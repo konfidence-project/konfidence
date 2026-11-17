@@ -91,6 +91,7 @@ Kubernetes: `>=1.27.0-0`
 | api.volumes | list | `[]` | Extra volumes mounted onto the API server Pod. |
 | containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true}` | Container-level security context. |
 | controller.controllers | string | `"*"` | Comma-separated list of sub-controllers, or `"*"` for all. |
+| controller.excludeNamespaces | list | `[]` | Namespaces whose resources are skipped before reconciliation. Changes roll out the operator. |
 | controller.healthProbeBindAddress | string | `":8081"` | Bind address for the health probe endpoint. |
 | controller.install | bool | `true` | Deploy the controller. When false, the chart renders only the CRDs (gated by `crd.install`) and skips Deployment, ServiceAccount, RBAC, Service, ServiceMonitor, and PodDisruptionBudget. Useful for installing CRDs into a local development cluster without running the controller. |
 | controller.leaderElection | bool | `true` | Enable leader election for the controller. |

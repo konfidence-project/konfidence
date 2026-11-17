@@ -3,6 +3,7 @@ package vectorpromotion
 import (
 	"context"
 
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/controller"
@@ -18,7 +19,7 @@ func Domain() operator.Domain {
 		Name:        OperatorFlagName,
 		Controllers: "VectorPromotion, VectorPromotionConfig, ActivatedOnSourceStageGate",
 		Setup: func(ctx context.Context, deps operator.Deps) error {
-			return SetupControllers(ctx, deps.Mgr, Options{})
+			return SetupControllers(ctx, deps.Mgr, Options{}, deps.ExcludedNamespaces)
 		},
 	}
 }
@@ -28,22 +29,22 @@ func Domain() operator.Domain {
 type Options struct{}
 
 // SetupControllers registers all vector promotion controllers with the given manager.
-func SetupControllers(ctx context.Context, mgr ctrl.Manager, _ Options) error {
+func SetupControllers(ctx context.Context, mgr ctrl.Manager, _ Options, excludedNamespaces ...pkgctrl.NamespaceExclusions) error {
 	if err := controller.RegisterFieldIndexes(ctx, mgr); err != nil {
 		return err
 	}
 	if err := gates.RegisterFieldIndexes(ctx, mgr); err != nil {
 		return err
 	}
-	if err := gates.NewActivatedOnSourceStageReconciler(mgr).SetupWithManager(mgr); err != nil {
+	if err := gates.NewActivatedOnSourceStageReconciler(mgr).SetupWithManager(mgr, excludedNamespaces...); err != nil {
 		return err
 	}
 
 	if err := controller.NewVectorPromotionReconciler(mgr).
-		SetupWithManager(mgr); err != nil {
+		SetupWithManager(mgr, excludedNamespaces...); err != nil {
 		return err
 	}
 
 	return controller.NewVectorPromotionConfigReconciler(mgr).
-		SetupWithManager(mgr)
+		SetupWithManager(mgr, excludedNamespaces...)
 }

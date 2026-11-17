@@ -575,7 +575,7 @@ func (r *VectorTemplateReconciler) buildAdapter(ctx context.Context, vt *konfide
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *VectorTemplateReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *VectorTemplateReconciler) SetupWithManager(mgr ctrl.Manager, excludedNamespaces ...pkgctrl.NamespaceExclusions) error {
 	if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
 		<-ctx.Done()
 		r.jobs.shutdown()
@@ -592,7 +592,7 @@ func (r *VectorTemplateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			builder.WithPredicates(latestVectorChangedPredicate()),
 		).
 		Named("vectortemplate").
-		Complete(r)
+		Complete(pkgctrl.WrapExcludedNamespaces(r, excludedNamespaces...))
 }
 
 // latestVectorChangedPredicate fires the base-VectorTemplate watch only when a base's

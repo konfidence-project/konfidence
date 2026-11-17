@@ -424,14 +424,14 @@ func namespaceEventReason(operationResult controllerutil.OperationResult) string
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *LandscapeReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *LandscapeReconciler) SetupWithManager(mgr ctrl.Manager, excludedNamespaces ...pkgctrl.NamespaceExclusions) error {
 	// We deliberately do not watch managed namespaces. Deletion or drift of the
 	// management labels on a namespace should be very rare and does not require
 	// immediate detection; the periodic requeue reconciles any drift as a backup.
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.Landscape{}, builder.WithPredicates(reconcilePredicate())).
 		Named(landscapeControllerName).
-		Complete(r)
+		Complete(pkgctrl.WrapExcludedNamespaces(r, excludedNamespaces...))
 }
 
 // reconcilePredicate triggers on spec (generation) changes and on deletion.

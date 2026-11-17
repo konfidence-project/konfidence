@@ -6,6 +6,7 @@ import (
 	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
@@ -17,8 +18,9 @@ const StageVersionGarbageCollectorName = "stage-version-garbage-collector"
 
 type StageVersionGarbageCollector struct {
 	client.Client
-	Interval time.Duration
-	Recorder events.EventRecorder
+	Interval           time.Duration
+	ExcludedNamespaces []pkgctrl.NamespaceExclusions
+	Recorder           events.EventRecorder
 }
 
 func (gc *StageVersionGarbageCollector) Start(ctx context.Context) error {
@@ -51,6 +53,9 @@ func (gc *StageVersionGarbageCollector) Start(ctx context.Context) error {
 			// check if stageVersions are still referenced by any stageVersionUsages
 			referencedStageVersions := map[string]bool{}
 			for _, stageVersionUsage := range stageVersionUsages.Items {
+				if pkgctrl.IsNamespaceExcluded(stageVersionUsage.Namespace, gc.ExcludedNamespaces...) {
+					continue
+				}
 				for _, stageVersionName := range stageVersionUsage.Status.ResolvedStageVersions {
 					referencedStageVersions[stageVersionName] = true
 				}
@@ -58,6 +63,9 @@ func (gc *StageVersionGarbageCollector) Start(ctx context.Context) error {
 
 			// delete unreferenced stageVersions
 			for _, stageVersion := range stageVersions.Items {
+				if pkgctrl.IsNamespaceExcluded(stageVersion.Namespace, gc.ExcludedNamespaces...) {
+					continue
+				}
 				if !referencedStageVersions[stageVersion.Name] {
 					log.Info("Deleting stage version", "name", stageVersion.Name)
 

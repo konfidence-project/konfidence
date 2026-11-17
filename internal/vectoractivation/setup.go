@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/konfidence-project/konfidence/internal/vectoractivation/internal/controller"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"github.com/konfidence-project/konfidence/pkg/operator"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
@@ -17,17 +18,17 @@ func Domain() operator.Domain {
 		Name:        OperatorFlagName,
 		Controllers: "VectorActivation",
 		Setup: func(_ context.Context, deps operator.Deps) error {
-			return SetupControllers(deps.Mgr, deps.Logger)
+			return SetupControllers(deps.Mgr, deps.Logger, deps.ExcludedNamespaces)
 		},
 	}
 }
 
-func SetupControllers(mgr manager.Manager, logger logr.Logger) error {
+func SetupControllers(mgr manager.Manager, logger logr.Logger, excludedNamespaces ...pkgctrl.NamespaceExclusions) error {
 	if err := (&controller.VectorActivationReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorder(controller.ActivationControllerName),
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, excludedNamespaces...); err != nil {
 		logger.Error(err, "unable to create controller", "controller", "VectorActivation")
 		return err
 	}

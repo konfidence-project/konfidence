@@ -8,6 +8,7 @@ import (
 	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -295,7 +296,7 @@ func promotionSchedulingChanged() predicate.Funcs {
 
 // SetupWithManager sets up the controller with the Manager. Update events are
 // admitted because gate changes and sibling terminations arrive as status updates.
-func (r *VectorPromotionReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *VectorPromotionReconciler) SetupWithManager(mgr ctrl.Manager, excludedNamespaces ...pkgctrl.NamespaceExclusions) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.VectorPromotion{}, builder.WithPredicates(predicate.Funcs{
 			DeleteFunc:  func(e event.DeleteEvent) bool { return false },
@@ -312,5 +313,5 @@ func (r *VectorPromotionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// cache before the next step. Stage patches use optimistic locking.
 		WithOptions(ctrlcontroller.Options{MaxConcurrentReconciles: 1}).
 		Named("vectorPromotion").
-		Complete(r)
+		Complete(pkgctrl.WrapExcludedNamespaces(r, excludedNamespaces...))
 }

@@ -36,6 +36,9 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
             - --controllers={{ .Values.controller.controllers }}
+            {{- with .Values.controller.excludeNamespaces }}
+            - {{ printf "--exclude-namespaces=%s" (join "," .) | quote }}
+            {{- end }}
             - --leader-elect={{ .Values.controller.leaderElection }}
             - --lease-id={{ .Values.controller.leaseId }}
             - --health-probe-bind-address={{ .Values.controller.healthProbeBindAddress }}
