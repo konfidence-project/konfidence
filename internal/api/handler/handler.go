@@ -6,7 +6,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-logr/logr"
@@ -115,7 +117,11 @@ func buildOCMReader(ctx context.Context, logger *slog.Logger, k8sClient client.C
 	vectorSpecs := loadSignatureSpecs("KONFIDENCE_API_VECTOR_SIGNATURES")
 	artifactSpecs := loadSignatureSpecs("KONFIDENCE_API_ARTIFACT_SIGNATURES")
 
-	return content.NewReader(ocmClient, verifier, resolver, vectorSpecs, artifactSpecs), nil
+	reader := content.NewReader(ocmClient, verifier, resolver, vectorSpecs, artifactSpecs)
+
+	cacheSize := envIntOr("KONFIDENCE_API_OCM_CACHE_SIZE", 500)
+	tagTTL := envDurationOr("KONFIDENCE_API_OCM_CACHE_TAG_TTL", 5*time.Minute)
+	return content.NewCachingReader(reader, cacheSize, tagTTL)
 }
 
 // buildOCMResolver loads the optional registry-credentials secret.
@@ -150,6 +156,24 @@ func loadSignatureSpecs(envVar string) []crypto.SignatureSpec {
 		}
 	}
 	return specs
+}
+
+func envIntOr(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil {
+			return parsed
+		}
+	}
+	return fallback
+}
+
+func envDurationOr(key string, fallback time.Duration) time.Duration {
+	if v := os.Getenv(key); v != "" {
+		if parsed, err := time.ParseDuration(v); err == nil {
+			return parsed
+		}
+	}
+	return fallback
 }
 
 func (s *apiHandler) handler() http.Handler {
