@@ -36,11 +36,6 @@ const (
 	// is Ready.
 	ArtifactDeploymentStalledReasonNoReadyDeploymentTarget = "NoReadyDeploymentTarget"
 
-	// ArtifactDeploymentStalledReasonDeploymentTargetSecretsMissing indicates that DeploymentTarget credentials are absent.
-	//
-	// Deprecated: use ArtifactDeploymentStalledReasonNoReadyDeploymentTarget.
-	ArtifactDeploymentStalledReasonDeploymentTargetSecretsMissing = "DeploymentTargetSecretsMissing"
-
 	// ArtifactDeploymentStalledReasonDeploymentResultNotUnique indicates that two DeploymentResults share a (name, type).
 	ArtifactDeploymentStalledReasonDeploymentResultNotUnique = "DeploymentResultNotUnique"
 
