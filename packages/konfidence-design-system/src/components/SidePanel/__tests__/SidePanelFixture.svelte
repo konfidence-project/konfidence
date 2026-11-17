@@ -5,7 +5,6 @@
         open?: boolean;
         title?: string;
         onClose?: () => void;
-        onCloseComplete?: () => void;
         fullPageHref?: string;
         showBody?: boolean;
         width?: number;
@@ -18,7 +17,6 @@
         open = $bindable(false),
         title = "Details",
         onClose,
-        onCloseComplete,
         fullPageHref,
         showBody = true,
         width,
@@ -38,14 +36,14 @@
     <button type="button" data-testid="set-closed" onclick={() => (open = false)}>Close programmatically</button>
     <button type="button" data-testid="toggle-modal" onclick={() => (modal = !modal)}>Toggle modality</button>
     {#if width === undefined}
-        <SidePanel bind:open {title} {onClose} {onCloseComplete} {fullPageHref} {onWidthChange} {modal}>
+        <SidePanel bind:open {title} {onClose} {fullPageHref} {onWidthChange} {modal}>
             {@render body()}
             {#snippet footer()}
                 {@render footerContent()}
             {/snippet}
         </SidePanel>
     {:else}
-        <SidePanel bind:open bind:width={panelWidth} {title} {onClose} {onCloseComplete} {fullPageHref} {onWidthChange} {modal}>
+        <SidePanel bind:open bind:width={panelWidth} {title} {onClose} {fullPageHref} {onWidthChange} {modal}>
             {@render body()}
             {#snippet footer()}
                 {@render footerContent()}

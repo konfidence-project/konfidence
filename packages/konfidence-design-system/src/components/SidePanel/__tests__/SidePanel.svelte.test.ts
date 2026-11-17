@@ -109,39 +109,27 @@ describe("<SidePanel>", () => {
     });
   });
 
-  describe("close completion", () => {
+  describe("focus restoration", () => {
     for (const modal of [false, true]) {
-      it(`completes a ${modal ? "modal" : "non-modal"} dismissal after dialog cleanup`, async () => {
+      it(`preserves caller focus after a ${modal ? "modal" : "non-modal"} dismissal`, async () => {
         const onClose = vi.fn();
-        const onCloseComplete = vi.fn(() => {
-          expect(page.getByTestId("side-panel").element().getAttribute("data-state")).toBe(
-            "closed",
-          );
-          expect(document.body.style.overflow).not.toBe("hidden");
-          if (modal) {
-            expect(document.activeElement).toBe(page.getByTestId("open-btn").element());
-          }
-          (page.getByTestId("outside-btn").element() as HTMLElement).focus();
-        });
-        await render(SidePanelFixture, { modal, onClose, onCloseComplete });
+        await render(SidePanelFixture, { modal, onClose });
         await page.getByTestId("open-btn").click();
         await vi.waitFor(() =>
           expect(document.activeElement).toBe(page.getByTestId("side-panel-close").element()),
         );
-        expect(onCloseComplete).not.toHaveBeenCalled();
-
         await userEvent.keyboard("{Escape}");
 
-        await vi.waitFor(() => expect(onCloseComplete).toHaveBeenCalledOnce());
         await expect.element(page.getByTestId("side-panel")).not.toBeVisible();
+        (page.getByTestId("outside-btn").element() as HTMLElement).focus();
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         await expect.element(page.getByTestId("outside-btn")).toHaveFocus();
         expect(onClose).toHaveBeenCalledOnce();
       });
 
       it(`completes a programmatic ${modal ? "modal" : "non-modal"} close without reporting a dismissal`, async () => {
         const onClose = vi.fn();
-        const onCloseComplete = vi.fn();
-        await render(SidePanelFixture, { modal, onClose, onCloseComplete, open: true, width: 600 });
+        await render(SidePanelFixture, { modal, onClose, open: true, width: 600 });
         await vi.waitFor(() =>
           expect(document.activeElement).toBe(page.getByTestId("side-panel-close").element()),
         );
@@ -151,15 +139,13 @@ describe("<SidePanel>", () => {
           .element()
           .dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
-        await vi.waitFor(() => expect(onCloseComplete).toHaveBeenCalledOnce());
         await expect.element(page.getByTestId("side-panel")).not.toBeVisible();
         expect(onClose).not.toHaveBeenCalled();
       });
     }
 
-    it("does not report completion when converting an open panel's modality", async () => {
-      const onCloseComplete = vi.fn();
-      await render(SidePanelFixture, { modal: false, onCloseComplete, open: true });
+    it("retains focus when converting an open panel's modality", async () => {
+      await render(SidePanelFixture, { modal: false, open: true });
       await vi.waitFor(() =>
         expect(document.activeElement).toBe(page.getByTestId("side-panel-close").element()),
       );
@@ -168,7 +154,7 @@ describe("<SidePanel>", () => {
 
       await expect.element(page.getByTestId("side-panel")).toHaveAttribute("aria-modal", "true");
       await vi.waitFor(() => expect(document.body.style.overflow).toBe("hidden"));
-      expect(onCloseComplete).not.toHaveBeenCalled();
+      await expect.element(page.getByTestId("side-panel-close")).toHaveFocus();
     });
   });
 

@@ -71,6 +71,10 @@
         } else if (wasOpen && !panelOpen && document.activeElement?.closest("[data-panel-surface]")) {restoreFocus = true;}
         wasOpen = panelOpen;
     });
+
+    $effect(() => {
+        if (!panelOpen) {restoreRowFocus();}
+    });
 </script>
 
 <section use:outsidePanelDismiss={{ dismiss: filters.close, enabled: () => selected !== undefined && desktop.current, ignoreSelector: "[data-promotion-group], [data-promotion-filters], [data-promotion-refresh]" }}
@@ -183,7 +187,7 @@
 </section>
 
 {#snippet footer()}<PromotionActions />{/snippet}
-<SidePanel open={panelOpen} title={selected?.id ?? "Promotion"} onClose={closePanel} onCloseComplete={restoreRowFocus}
+<SidePanel open={panelOpen} title={selected?.id ?? "Promotion"} onClose={closePanel}
     width={panelDimensions.width} onWidthChange={panelDimensions.setWidth} modal={!desktop.current} focusKey={panelFocusKey}
     footer={selected && isActionable(selected) ? footer : undefined}>
     {#if selected}<PromotionDetail promotion={selected} {landscapes} />{/if}
