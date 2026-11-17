@@ -2,6 +2,7 @@ package controller
 
 import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	promotionstate "github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
 	utils "github.com/konfidence-project/konfidence/pkg/controller"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -10,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Shared drivers for the execution controller specs: direct Reconcile calls
@@ -20,10 +22,26 @@ func newExecutionReconciler() *VectorPromotionReconciler {
 }
 
 func reconcilePromotion(name string) ctrl.Result {
-	result, err := newExecutionReconciler().Reconcile(ctx, ctrl.Request{
+	r := newExecutionReconciler()
+	request := ctrl.Request{
 		NamespacedName: types.NamespacedName{Name: name, Namespace: testNamespace},
-	})
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	}
+	var result ctrl.Result
+	for step := 0; step < 3; step++ {
+		var err error
+		result, err = r.Reconcile(ctx, request)
+		ExpectWithOffset(1, err).ToNot(HaveOccurred())
+		if result.RequeueAfter != promotionResyncInterval {
+			return result
+		}
+		// Direct clients immediately observe persisted readiness/startTime.
+		// Drive at most the three lifecycle steps, never retry API errors.
+		p := &konfidence.VectorPromotion{}
+		ExpectWithOffset(1, k8sClient.Get(ctx, request.NamespacedName, p)).To(Succeed())
+		if !promotionstate.IsReadyForExecution(p) {
+			return result
+		}
+	}
 	return result
 }
 
@@ -52,7 +70,27 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 		promotion := createPromotionTargeting("exec-auto-promotion", config.Name,
 			stageTargetInLandscape("exec-stage", "exec-auto-landscape"), false)
 
-		By("the first reconcile records Ready and executes directly")
+		By("the first reconcile records Ready without starting execution")
+		result, err := newExecutionReconciler().Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(promotion)})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result.RequeueAfter).To(Equal(promotionResyncInterval))
+		refreshPromotion(promotion)
+		Expect(observedState(promotion)).To(Equal("Ready"))
+		Expect(promotion.Status.StartTime).To(BeNil())
+		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(stage), stage)).To(Succeed())
+		Expect(stage.Spec.Vector).To(BeEmpty())
+
+		By("the next reconcile observes Ready and records execution start")
+		result, err = newExecutionReconciler().Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(promotion)})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result.RequeueAfter).To(Equal(promotionResyncInterval))
+		refreshPromotion(promotion)
+		Expect(observedState(promotion)).To(Equal("InProgress"))
+		Expect(promotion.Status.StartTime).NotTo(BeNil())
+		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(stage), stage)).To(Succeed())
+		Expect(stage.Spec.Vector).To(BeEmpty())
+
+		By("the third reconcile observes execution start and promotes the Stage")
 		reconcilePromotion(promotion.Name)
 		refreshPromotion(promotion)
 		Expect(promotion.Status.Gates).To(BeEmpty())
@@ -91,9 +129,8 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 		promotion := createPromotionTargeting("exec-nolandscape-promotion", config.Name,
 			stageTargetInLandscape("some-stage", "missing-landscape"), false)
 
-		_, err := newExecutionReconciler().Reconcile(ctx, ctrl.Request{
-			NamespacedName: types.NamespacedName{Name: promotion.Name, Namespace: testNamespace},
-		})
+		Expect(newExecutionReconciler().reconcileGates(ctx, promotion)).To(Succeed())
+		_, err := newExecutionReconciler().Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(promotion)})
 		Expect(err).To(MatchError(ContainSubstring(`landscape "missing-landscape" does not exist`)))
 
 		refreshPromotion(promotion)
@@ -112,9 +149,8 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 			stageTargetInLandscape("late-stage", "exec-nostage-landscape"), false)
 
 		By("resolution fails while the stage does not exist; the stage is not created")
-		_, err := newExecutionReconciler().Reconcile(ctx, ctrl.Request{
-			NamespacedName: types.NamespacedName{Name: promotion.Name, Namespace: testNamespace},
-		})
+		Expect(newExecutionReconciler().reconcileGates(ctx, promotion)).To(Succeed())
+		_, err := newExecutionReconciler().Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(promotion)})
 		Expect(err).To(MatchError(ContainSubstring(`stage "late-stage" does not exist`)))
 
 		refreshPromotion(promotion)
@@ -155,9 +191,8 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 		Expect(k8sClient.Delete(ctx, stage)).To(Succeed())
 		second := createPromotionTargeting("exec-preserve-b", config.Name,
 			stageTargetInLandscape("preserve-stage", "exec-preserve-landscape"), false)
-		_, err := newExecutionReconciler().Reconcile(ctx, ctrl.Request{
-			NamespacedName: types.NamespacedName{Name: second.Name, Namespace: testNamespace},
-		})
+		Expect(newExecutionReconciler().reconcileGates(ctx, second)).To(Succeed())
+		_, err := newExecutionReconciler().Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(second)})
 		Expect(err).To(HaveOccurred())
 
 		Eventually(func(g Gomega) {

@@ -383,7 +383,6 @@ const vectorPromotionConfigs: VectorPromotionConfig[] = [
     ],
     source: { kind: "Stage", landscape: "development", name: "dev-us30" },
     target: { kind: "Stage", landscape: "test", name: "test-eu20" },
-    ttlAfterFinished: "168h0m0s",
   },
   {
     id: "delivery-vector-test-to-prod",

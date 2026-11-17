@@ -16,7 +16,7 @@ const OperatorFlagName = "VectorPromotion"
 func Domain() operator.Domain {
 	return operator.Domain{
 		Name:        OperatorFlagName,
-		Controllers: "VectorPromotion, VectorPromotionConfig, VectorPromotionTTL, ActivatedOnSourceStageGate",
+		Controllers: "VectorPromotion, VectorPromotionConfig, ActivatedOnSourceStageGate",
 		Setup: func(ctx context.Context, deps operator.Deps) error {
 			return SetupControllers(ctx, deps.Mgr, Options{})
 		},
@@ -44,11 +44,6 @@ func SetupControllers(ctx context.Context, mgr ctrl.Manager, _ Options) error {
 		return err
 	}
 
-	if err := controller.NewVectorPromotionConfigReconciler(mgr).
-		SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	return controller.NewVectorPromotionTTLReconciler(mgr).
+	return controller.NewVectorPromotionConfigReconciler(mgr).
 		SetupWithManager(mgr)
 }

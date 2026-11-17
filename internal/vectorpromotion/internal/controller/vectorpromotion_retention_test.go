@@ -6,7 +6,7 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -15,65 +15,62 @@ import (
 	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
 )
 
-var _ = Describe("VectorPromotion retention controller tests", Ordered, Serial, func() {
+var _ = Describe("VectorPromotion self-retention", Ordered, Serial, func() {
 
 	BeforeEach(func() { cleanupPromotions() })
 
-	It("should delete VectorPromotion after TTL expires (successful promotion)", func() {
-		By("creating VectorPromotion with short TTL")
-		promotion := createPromotionWithTTL("ttl-success-promotion", "ttl-success-config", 2*time.Second)
-
-		By("marking the promotion as succeeded")
-		setSucceededCondition(promotion, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, time.Now())
-
-		By("asserting the VectorPromotion is eventually deleted")
-		Eventually(func() bool {
-			err := k8sClient.Get(ctx, types.NamespacedName{
-				Name: promotion.Name, Namespace: testNamespace,
-			}, promotion)
-			return errors.IsNotFound(err)
-		}, 15*time.Second, interval).Should(BeTrue())
+	It("counts rejection as terminal and wakes older promotions to delete themselves", func() {
+		config := createConfigWithRetention("retention-reject-config", 1)
+		older := createPromotion("retention-reject-old", config.Name)
+		setSucceededCondition(older, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, time.Now())
+		newer := createPromotionRequiringApproval("retention-reject-new", config.Name)
+		startWatchedExecutionManager()
+		Eventually(func(g Gomega) {
+			refreshPromotion(newer)
+			g.Expect(promotion.IsWaiting(newer)).To(BeTrue())
+			g.Expect(meta.FindStatusCondition(newer.Status.Conditions, konfidence.ConditionTypeGatesSatisfied)).NotTo(BeNil())
+		}, timeout, interval).Should(Succeed())
+		setOverride(newer, konfidence.PromotionOverrideTypeReject)
+		// Less than the periodic fallback: deletion must be driven by fan-out
+		// of the newer promotion's transition to terminal rejection.
+		Eventually(func(g Gomega) {
+			refreshPromotion(newer)
+			g.Expect(observedState(newer)).To(Equal("Rejected"))
+			g.Expect(apierrors.IsNotFound(k8sClient.Get(ctx, client.ObjectKeyFromObject(older), older))).To(BeTrue())
+		}, 10*time.Second, interval).Should(Succeed())
 	})
 
-	It("should delete VectorPromotion after TTL expires (failed promotion)", func() {
-		By("creating VectorPromotion with short TTL")
-		promotion := createPromotionWithTTL("ttl-failed-promotion", "ttl-failed-config", 2*time.Second)
-
-		By("marking the promotion as failed")
-		setSucceededCondition(promotion, metav1.ConditionFalse, konfidence.ReasonPromotionSuperseded, time.Now())
-
-		By("asserting the VectorPromotion is eventually deleted")
-		Eventually(func() bool {
-			err := k8sClient.Get(ctx, types.NamespacedName{
-				Name: promotion.Name, Namespace: testNamespace,
-			}, promotion)
-			return errors.IsNotFound(err)
-		}, 15*time.Second, interval).Should(BeTrue())
+	It("fans out retention-limit changes to terminal promotions", func() {
+		config := createConfigWithRetention("retention-config-watch", 3)
+		var newest *konfidence.VectorPromotion
+		for _, name := range []string{"retention-watch-a", "retention-watch-b", "retention-watch-c"} {
+			newest = createPromotion(name, config.Name)
+			setSucceededCondition(newest, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, time.Now())
+		}
+		startWatchedExecutionManager()
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(config), config)).To(Succeed())
+			original := config.DeepCopy()
+			keep := int32(1)
+			config.Spec.KeepLastPromotions = &keep
+			g.Expect(k8sClient.Patch(ctx, config, client.MergeFrom(original))).To(Succeed())
+		}, timeout, interval).Should(Succeed())
+		Eventually(func(g Gomega) {
+			list := &konfidence.VectorPromotionList{}
+			g.Expect(k8sClient.List(ctx, list, client.InNamespace(testNamespace),
+				client.MatchingFields{promotionConfigNameField: config.Name})).To(Succeed())
+			g.Expect(list.Items).To(HaveLen(1))
+			g.Expect(list.Items[0].Name).To(Equal(newest.Name))
+		}, 10*time.Second, interval).Should(Succeed())
 	})
 
-	It("should not delete VectorPromotion when no TTL is configured", func() {
-		By("creating VectorPromotion without TTL")
-		promotion := createPromotion("ttl-none-promotion", "ttl-none-config")
+	It("retains terminal promotions within the count bound regardless of age", func() {
+		promotion := createPromotion("retention-old-promotion", "retention-old-config")
 
 		By("marking the promotion as succeeded")
-		setSucceededCondition(promotion, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, time.Now())
+		setSucceededCondition(promotion, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, time.Now().Add(-365*24*time.Hour))
 
 		By("asserting the VectorPromotion persists")
-		Consistently(func(g Gomega) {
-			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
-				Name: promotion.Name, Namespace: testNamespace,
-			}, promotion)).To(Succeed())
-		}, 5*time.Second, interval).Should(Succeed())
-	})
-
-	It("should not delete VectorPromotion when TTL has not yet expired", func() {
-		By("creating VectorPromotion with long TTL")
-		promotion := createPromotionWithTTL("ttl-long-promotion", "ttl-long-config", time.Hour)
-
-		By("marking the promotion as succeeded")
-		setSucceededCondition(promotion, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, time.Now())
-
-		By("asserting the VectorPromotion persists (TTL not expired)")
 		Consistently(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion.Name, Namespace: testNamespace,
@@ -90,6 +87,7 @@ var _ = Describe("VectorPromotion retention controller tests", Ordered, Serial, 
 			promotion := createPromotion(name, config.Name)
 			setSucceededCondition(promotion, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, time.Now())
 		}
+		startWatchedExecutionManager()
 
 		By("asserting only the newest terminal promotion survives")
 		Eventually(func(g Gomega) {
@@ -102,6 +100,40 @@ var _ = Describe("VectorPromotion retention controller tests", Ordered, Serial, 
 				}
 			}
 			g.Expect(names).To(ConsistOf("ttl-retention-c"))
+		}, timeout, interval).Should(Succeed())
+	})
+
+	It("counts only eligible terminals and resumes cleanup after older active promotions finish", func() {
+		config := createConfigWithRetention("retention-boundary-config", 1)
+		oldest := createPromotion("retention-boundary-oldest", config.Name)
+		eligible := createPromotion("retention-boundary-eligible", config.Name)
+		active := createPromotionRequiringApproval("retention-boundary-active", config.Name)
+		newest := createPromotion("retention-boundary-newest", config.Name)
+		for _, p := range []*konfidence.VectorPromotion{oldest, eligible, newest} {
+			setSucceededCondition(p, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, time.Now())
+		}
+		names := func(g Gomega) []string {
+			list := &konfidence.VectorPromotionList{}
+			g.Expect(k8sClient.List(ctx, list, client.InNamespace(testNamespace),
+				client.MatchingFields{promotionConfigNameField: config.Name})).To(Succeed())
+			result := make([]string, 0, len(list.Items))
+			for _, p := range list.Items {
+				result = append(result, p.Name)
+			}
+			return result
+		}
+		By("keeping one eligible terminal in addition to the deferred newer terminal")
+		for _, p := range []*konfidence.VectorPromotion{oldest, eligible, newest} {
+			reconcilePromotion(p.Name)
+		}
+		Eventually(func(g Gomega) {
+			g.Expect(names(g)).To(ConsistOf(eligible.Name, active.Name, newest.Name))
+		}, timeout, interval).Should(Succeed())
+		By("letting the older active promotion supersede itself")
+		startWatchedExecutionManager()
+		By("applying the retention count to all terminals once none are active")
+		Eventually(func(g Gomega) {
+			g.Expect(names(g)).To(ConsistOf(newest.Name))
 		}, timeout, interval).Should(Succeed())
 	})
 
@@ -122,7 +154,13 @@ var _ = Describe("VectorPromotion retention controller tests", Ordered, Serial, 
 		middle := createPromotionRequiringApproval("outstanding-retention-b", config.Name)
 		newest := createPromotionRequiringApproval("outstanding-retention-c", config.Name)
 
+		By("newer promotions do not update the oldest promotion's lifecycle")
+		reconcilePromotion(newest.Name)
+		refreshPromotion(oldest)
+		Expect(promotion.IsTerminal(oldest)).To(BeFalse())
+
 		Eventually(func(g Gomega) {
+			reconcilePromotion(oldest.Name)
 			refreshPromotion(oldest)
 			condition := meta.FindStatusCondition(oldest.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(observedState(oldest)).To(Equal("Superseded"))
@@ -157,6 +195,7 @@ var _ = Describe("VectorPromotion retention controller tests", Ordered, Serial, 
 		}, timeout, interval).Should(Succeed())
 
 		Eventually(func(g Gomega) {
+			reconcilePromotion(oldest.Name)
 			refreshPromotion(oldest)
 			condition := meta.FindStatusCondition(oldest.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(observedState(oldest)).To(Equal("Superseded"))
@@ -187,30 +226,11 @@ var _ = Describe("VectorPromotion retention controller tests", Ordered, Serial, 
 
 		Consistently(func(g Gomega) {
 			for _, vectorPromotion := range promotions {
+				reconcilePromotion(vectorPromotion.Name)
 				refreshPromotion(vectorPromotion)
 				g.Expect(promotion.IsTerminal(vectorPromotion)).To(BeFalse())
 			}
 		}, 3*time.Second, interval).Should(Succeed())
 	})
 
-	It("should delete VectorPromotion when TTL is added via spec update after promotion completes", func() {
-		By("creating VectorPromotion without TTL")
-		promotion := createPromotion("ttl-patch-promotion", "ttl-patch-config")
-
-		By("marking the promotion as succeeded")
-		setSucceededCondition(promotion, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, time.Now())
-
-		By("patching TTLAfterFinished onto the completed promotion")
-		patch := client.MergeFrom(promotion.DeepCopy())
-		promotion.Spec.TTLAfterFinished = &metav1.Duration{Duration: 2 * time.Second}
-		Expect(k8sClient.Patch(ctx, promotion, patch)).To(Succeed())
-
-		By("asserting the VectorPromotion is eventually deleted")
-		Eventually(func() bool {
-			err := k8sClient.Get(ctx, types.NamespacedName{
-				Name: promotion.Name, Namespace: testNamespace,
-			}, promotion)
-			return errors.IsNotFound(err)
-		}, 15*time.Second, interval).Should(BeTrue())
-	})
 })

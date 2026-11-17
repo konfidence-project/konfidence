@@ -11,7 +11,7 @@ import (
 )
 
 func getPromotionConfig(
-	ctx context.Context, clusterClient client.Client, vectorPromotion *konfidence.VectorPromotion,
+	ctx context.Context, clusterClient client.Reader, vectorPromotion *konfidence.VectorPromotion,
 ) (*konfidence.VectorPromotionConfig, error) {
 	config := &konfidence.VectorPromotionConfig{}
 	if err := clusterClient.Get(ctx, types.NamespacedName{
@@ -23,27 +23,22 @@ func getPromotionConfig(
 	return config, nil
 }
 
-// listSiblingPromotions returns all promotions in the promotion's namespace
-// that reference the same VectorPromotionConfig, excluding the promotion
-// itself by UID. The field selector is served by the manager cache index
-// (RegisterFieldIndexes) for cached clients and by the CRD's selectableFields
-// for direct clients.
-func listSiblingPromotions(
-	ctx context.Context, clusterClient client.Client, vectorPromotion *konfidence.VectorPromotion,
-) ([]konfidence.VectorPromotion, error) {
-	promotions, err := listPromotionsForConfig(ctx, clusterClient, vectorPromotion.Namespace, vectorPromotion.Spec.VectorPromotionConfigName)
+// listSiblingPromotions excludes self so a cached, pre-patch copy cannot
+// override the status already evaluated by the current reconciliation.
+func listSiblingPromotions(ctx context.Context, c client.Reader, current *konfidence.VectorPromotion) ([]konfidence.VectorPromotion, error) {
+	promotions, err := listPromotionsForConfig(ctx, c, current.Namespace, current.Spec.VectorPromotionConfigName)
 	if err != nil {
 		return nil, err
 	}
 	return slices.DeleteFunc(promotions, func(p konfidence.VectorPromotion) bool {
-		return p.UID == vectorPromotion.UID
+		return p.UID == current.UID
 	}), nil
 }
 
 // listPromotionsForConfig returns all promotions in the namespace referencing
 // the named VectorPromotionConfig.
 func listPromotionsForConfig(
-	ctx context.Context, clusterClient client.Client, namespace, configName string,
+	ctx context.Context, clusterClient client.Reader, namespace, configName string,
 ) ([]konfidence.VectorPromotion, error) {
 	list := &konfidence.VectorPromotionList{}
 	err := clusterClient.List(ctx, list,

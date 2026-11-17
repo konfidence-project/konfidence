@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"time"
-
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -78,10 +76,12 @@ var _ = Describe("VectorPromotion operator override", Ordered, Serial, func() {
 			Expect(meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeGatesSatisfied)).To(BeNil())
 		})
 
-		It("is reaped by ttlAfterFinished like any finished promotion", func() {
-			promotion := createPromotionWithTTL("override-reject-ttl", "some-config", time.Second)
+		It("is reaped by count-based retention like any finished promotion", func() {
+			config := createConfigWithRetention("override-reject-retention", 0)
+			promotion := createPromotion("override-reject-retention", config.Name)
 			setOverride(promotion, konfidence.PromotionOverrideTypeReject)
 			reconcilePromotion(promotion.Name)
+			startWatchedExecutionManager()
 
 			Eventually(func(g Gomega) {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: promotion.Name, Namespace: testNamespace}, promotion)
@@ -103,6 +103,11 @@ var _ = Describe("VectorPromotion operator override", Ordered, Serial, func() {
 
 			setOverride(promotion, konfidence.PromotionOverrideTypeBypassGates)
 			recorder := reconcileWithEvents(promotion.Name)
+			refreshPromotion(promotion)
+			Expect(observedState(promotion)).To(Equal("InProgress"))
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: stage.Name, Namespace: stage.Namespace}, stage)).To(Succeed())
+			Expect(stage.Spec.Vector).NotTo(Equal(testVector))
+			reconcilePromotion(promotion.Name)
 			refreshPromotion(promotion)
 
 			Expect(observedState(promotion)).To(Equal("Succeeded"))

@@ -539,7 +539,6 @@ export interface components {
       target: components["schemas"]["PromotionTargetReference"];
       /** @description Gates every promotion created from this config must pass. */
       gates?: components["schemas"]["PromotionGate"][];
-      ttlAfterFinished?: string;
       keepLastPromotions?: number;
       promotions: components["schemas"]["VectorPromotion"][];
     };
@@ -557,7 +556,6 @@ export interface components {
         | "Succeeded"
         | "Superseded"
         | "Rejected";
-      ttlAfterFinished?: string;
       /** Format: int64 */
       sequence?: number;
       /** @description State of every gate declared on the promotion, in declaration order. A declared gate without a recorded state is reported as Pending. */

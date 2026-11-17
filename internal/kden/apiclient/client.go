@@ -590,13 +590,12 @@ type VectorPromotion struct {
 	Id VectorPromotionId `json:"id"`
 
 	// Override Operator decision that overrides the gate flow, with its provenance. `Reject` terminally rejects the promotion; `BypassGates` lets it proceed regardless of its gates, whose states are left as their writers reported them.
-	Override         *PromotionOverride       `json:"override,omitempty"`
-	Sequence         *int64                   `json:"sequence,omitempty"`
-	Source           PromotionSourceReference `json:"source"`
-	Status           *VectorPromotionStatus   `json:"status,omitempty"`
-	Target           PromotionTargetReference `json:"target"`
-	TtlAfterFinished *string                  `json:"ttlAfterFinished,omitempty"`
-	Vector           string                   `json:"vector"`
+	Override *PromotionOverride       `json:"override,omitempty"`
+	Sequence *int64                   `json:"sequence,omitempty"`
+	Source   PromotionSourceReference `json:"source"`
+	Status   *VectorPromotionStatus   `json:"status,omitempty"`
+	Target   PromotionTargetReference `json:"target"`
+	Vector   string                   `json:"vector"`
 }
 
 // VectorPromotionStatus defines model for VectorPromotion.Status.
@@ -613,7 +612,6 @@ type VectorPromotionConfig struct {
 	Promotions         []VectorPromotion        `json:"promotions"`
 	Source             PromotionSourceReference `json:"source"`
 	Target             PromotionTargetReference `json:"target"`
-	TtlAfterFinished   *string                  `json:"ttlAfterFinished,omitempty"`
 }
 
 // VectorPromotionConfigId The vectorPromotionConfig id

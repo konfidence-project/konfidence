@@ -5,8 +5,6 @@
 package promotion
 
 import (
-	"time"
-
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 )
@@ -87,20 +85,4 @@ func Newest(promotions []konfidence.VectorPromotion) *konfidence.VectorPromotion
 // resolution invites ties.
 func Newer(p, than *konfidence.VectorPromotion) bool {
 	return p.Spec.Sequence > than.Spec.Sequence
-}
-
-// TTLStatus returns whether the promotion should be deleted and the time
-// remaining until expiry, measured from `status.completionTime` (or the
-// Succeeded condition's transition time if it is missing). Returns (false, 0)
-// if no TTL is configured or the promotion is not finished.
-func TTLStatus(p *konfidence.VectorPromotion) (shouldDelete bool, remaining time.Duration) {
-	if p.Spec.TTLAfterFinished == nil || !IsTerminal(p) {
-		return false, 0
-	}
-	finishedAt := meta.FindStatusCondition(p.Status.Conditions, konfidence.ConditionTypeSucceeded).LastTransitionTime
-	if p.Status.CompletionTime != nil {
-		finishedAt = *p.Status.CompletionTime
-	}
-	remaining = time.Until(finishedAt.Add(p.Spec.TTLAfterFinished.Duration))
-	return remaining <= 0, remaining
 }
