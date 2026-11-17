@@ -40,7 +40,10 @@ func TestGarbageCollectorSkipsExcludedNamespaces(t *testing.T) {
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(retained, unused, fixtureUsage,
 		&konfidence.Stage{ObjectMeta: metav1.ObjectMeta{Name: "stage", Namespace: "allowed"}},
 	).Build()
-	collector := &StageVersionGarbageCollector{Client: c, Interval: time.Millisecond, ExcludedNamespaces: []pkgctrl.NamespaceExclusions{policy}, Recorder: events.NewFakeRecorder(10)}
+	collector := &StageVersionGarbageCollector{
+		Client: c, Interval: time.Millisecond,
+		ExcludedNamespaces: []pkgctrl.NamespaceExclusions{policy}, Recorder: events.NewFakeRecorder(10),
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- collector.Start(ctx) }()

@@ -76,7 +76,10 @@ func init() {
 		"Directory containing TLS certificate files (tls.crt and tls.key) for the webhook server. Only used when --enable-webhooks is true.")
 	rootCmd.PersistentFlags().IntVar(&webhookPort, "webhook-port", 9443,
 		"Port the webhook server listens on. Only used when --enable-webhooks is true.")
-	rootCmd.Flags().StringVar(&excludedNamespacesSpec, "exclude-namespaces", "", "Comma-separated namespaces whose resources are not reconciled. Changes require a restart.")
+	rootCmd.Flags().StringVar(
+		&excludedNamespacesSpec, "exclude-namespaces", "",
+		"Comma-separated namespaces whose resources are not reconciled. Changes require a restart.",
+	)
 	rootCmd.Flags().StringVar(&controllersSpec, "controllers", "*", controllersHelp())
 	rootCmd.Flags().StringVar(&leaseID, "lease-id", "konfidence-operator.konfidence.cloud", "The ID used for leader election.")
 }

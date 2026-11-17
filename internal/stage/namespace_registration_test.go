@@ -47,7 +47,10 @@ func TestNamespaceExclusionsInRegisteredStageControllers(t *testing.T) {
 	}
 	ctx := context.Background()
 	for _, ns := range []string{"fixtures", "allowed"} {
-		if err := c.Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns, Labels: map[string]string{pkgctrl.ProjectTypeLabel: "landscape"}}}); err != nil {
+		namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+			Name: ns, Labels: map[string]string{pkgctrl.ProjectTypeLabel: "landscape"},
+		}}
+		if err := c.Create(ctx, namespace); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -55,7 +58,10 @@ func TestNamespaceExclusionsInRegisteredStageControllers(t *testing.T) {
 	if err := c.Create(ctx, fixed); err != nil {
 		t.Fatal(err)
 	}
-	fixed.Status = konfidence.StageStatus{Conditions: []metav1.Condition{{Type: "Ready", Status: metav1.ConditionFalse, Reason: "FixedSnapshot", Message: "Must survive reconciliation", LastTransitionTime: metav1.Now()}}}
+	fixed.Status = konfidence.StageStatus{Conditions: []metav1.Condition{{
+		Type: "Ready", Status: metav1.ConditionFalse, Reason: "FixedSnapshot",
+		Message: "Must survive reconciliation", LastTransitionTime: metav1.Now(),
+	}}}
 	if err := c.Status().Update(ctx, fixed); err != nil {
 		t.Fatal(err)
 	}
@@ -108,19 +114,7 @@ func TestNamespaceExclusionsInRegisteredStageControllers(t *testing.T) {
 			t.Error(err)
 		}
 	}()
-	deadline := time.Now().Add(10 * time.Second)
-	for {
-		if err := c.Get(ctx, client.ObjectKeyFromObject(allowed), allowed); err != nil {
-			t.Fatal(err)
-		}
-		if len(allowed.Status.Conditions) != 0 {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("allowed controller did not run")
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
+	waitForAllowedStageReconciliation(t, ctx, c, allowed)
 	if err := c.Get(ctx, client.ObjectKeyFromObject(fixed), fixed); err != nil {
 		t.Fatal(err)
 	}
@@ -152,5 +146,22 @@ func TestNamespaceExclusionsInRegisteredStageControllers(t *testing.T) {
 	}
 	if len(deployments.Items) != 0 {
 		t.Fatal("registered StageVersion controller created an excluded deployment")
+	}
+}
+
+func waitForAllowedStageReconciliation(t *testing.T, ctx context.Context, c client.Client, allowed *konfidence.Stage) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		if err := c.Get(ctx, client.ObjectKeyFromObject(allowed), allowed); err != nil {
+			t.Fatal(err)
+		}
+		if len(allowed.Status.Conditions) != 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("allowed controller did not run")
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }
