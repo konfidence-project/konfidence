@@ -10,6 +10,10 @@
     const approval = $derived(approvalGate(promotion));
     const approvalLabels: Record<string, string> = { Error: "Approval gate error", Pending: "Awaiting approval", Satisfied: "Approved" };
     const approvalLabel = $derived(approval ? approvalLabels[approval.state] ?? approval.state ?? "Unknown" : "No explicit-approval gate recorded");
+    const formatTimestamp = (value: string) => {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+    };
     const fieldClass = "min-w-0 text-compact text-content-primary [overflow-wrap:anywhere]";
 </script>
 
@@ -35,7 +39,7 @@
         <dt class="text-content-tertiary">Target</dt><dd class={fieldClass}>{referenceLabel(promotion.target, landscapes)}</dd>
         <dt class="text-content-tertiary">Approval</dt><dd class={fieldClass}>{approvalLabel}</dd>
         {#if approval?.setBy}<dt class="text-content-tertiary">Recorded by</dt><dd class={fieldClass}>{approval.setBy}</dd>{/if}
-        {#if approval?.setAt}<dt class="text-content-tertiary">Recorded at</dt><dd class={fieldClass}>{approval.setAt}</dd>{/if}
+        {#if approval?.setAt}<dt class="text-content-tertiary">Recorded at</dt><dd class={fieldClass}>{formatTimestamp(approval.setAt)}</dd>{/if}
         {#if approval?.message}<dt class="text-content-tertiary">Approval message</dt><dd class={fieldClass}>{approval.message}</dd>{/if}
     </dl>
     </section>
