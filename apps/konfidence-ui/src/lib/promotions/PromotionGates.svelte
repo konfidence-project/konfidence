@@ -2,6 +2,13 @@
     import type { PromotionGate } from "./gates.ts";
     import { gateLabel, gateStateLabel, gateTone, isPendingApproval, satisfiedCount } from "./gates.ts";
 
+    const toneClasses = {
+        healthy: { icon: "bg-status-healthy-bg text-status-healthy-fg", label: "text-status-healthy-fg" },
+        error: { icon: "bg-status-error-bg text-status-error-fg", label: "text-status-error-fg" },
+        queued: { icon: "bg-status-queued-bg text-status-queued-fg", label: "text-content-secondary" },
+    };
+    const stateIcons: Record<string, string> = { Satisfied: "✓", Error: "!" };
+
     interface Props { gates?: readonly PromotionGate[]; }
     let { gates }: Props = $props();
 </script>
@@ -16,7 +23,7 @@
                 {@const stateLabel = gateStateLabel(gate)}
                 {@const pendingApproval = isPendingApproval(gate)}
                 <li class={["flex min-w-0 items-start gap-3 rounded-[var(--radius-sm)] p-3", pendingApproval && "bg-[var(--tag-amber-bg)]"]}>
-                    <span aria-hidden="true" class={["flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-sm)] font-semibold", tone === "healthy" ? "bg-status-healthy-bg text-status-healthy-fg" : tone === "error" ? "bg-status-error-bg text-status-error-fg" : "bg-status-queued-bg text-status-queued-fg"]}>{gate.state === "Satisfied" ? "✓" : gate.state === "Error" ? "!" : "−"}</span>
+                    <span aria-hidden="true" class={["flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-sm)] font-semibold", toneClasses[tone].icon]}>{stateIcons[gate.state] ?? "−"}</span>
                     <div class="flex min-w-0 grow flex-col gap-1 [overflow-wrap:anywhere]">
                         <span class="flex flex-wrap items-center gap-2 text-compact font-medium">
                             <span title={gate.type}>{label}</span>
@@ -28,7 +35,7 @@
                         {#if gate.setBy}<span class="text-meta text-content-tertiary">Recorded by {gate.setBy}</span>{/if}
                         {#if gate.setAt}<span class="text-meta text-content-tertiary">Recorded at {gate.setAt}</span>{/if}
                     </div>
-                    <span class={["shrink-0 text-compact", tone === "healthy" ? "text-status-healthy-fg" : tone === "error" ? "text-status-error-fg" : "text-content-secondary"]}>{stateLabel}</span>
+                    <span class={["shrink-0 text-compact", toneClasses[tone].label]}>{stateLabel}</span>
                 </li>
             {/each}
         </ul>
