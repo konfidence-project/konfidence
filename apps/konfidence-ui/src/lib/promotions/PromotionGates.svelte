@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { PromotionGate } from "./gates.ts";
     import { gateLabel, gateStateLabel, gateTone, isPendingApproval, satisfiedCount } from "./gates.ts";
+    import { formatTimestamp } from "./format-timestamp.ts";
 
     const toneClasses = {
         healthy: { icon: "bg-status-healthy-bg text-status-healthy-fg", label: "text-status-healthy-fg" },
@@ -33,7 +34,7 @@
                         {#if gate.message}<span class="text-compact text-content-secondary">{gate.message}</span>{/if}
                         {#if gate.reason}<span class="text-meta text-content-tertiary">Reason: {gate.reason}</span>{/if}
                         {#if gate.setBy}<span class="text-meta text-content-tertiary">Recorded by {gate.setBy}</span>{/if}
-                        {#if gate.setAt}<span class="text-meta text-content-tertiary">Recorded at {gate.setAt}</span>{/if}
+                        {#if gate.setAt}<span class="text-meta text-content-tertiary">Recorded at {formatTimestamp(gate.setAt)}</span>{/if}
                     </div>
                     <span class={["shrink-0 text-compact", toneClasses[tone].label]}>{stateLabel}</span>
                 </li>

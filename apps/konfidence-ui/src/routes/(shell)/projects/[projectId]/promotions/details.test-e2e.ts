@@ -366,6 +366,7 @@ test("shows actual gate states and metadata in details without fabricated gate n
   const gates = [
     {
       message: "Source vector activated",
+      setAt: "2026-09-29T20:14:26Z",
       setBy: "controller",
       state: "Satisfied",
       type: "activated-on-source-stage.konfidence.cloud",
@@ -391,6 +392,11 @@ test("shows actual gate states and metadata in details without fabricated gate n
   await expect(section.getByRole("listitem")).toHaveCount(4);
   await expect(section).toContainText("1 of 4 gates satisfied");
   await expect(section).toContainText("Source stage activation");
+  const formattedTimestamp = await page.evaluate(() =>
+    new Date("2026-09-29T20:14:26Z").toLocaleString(),
+  );
+  await expect(section).toContainText(`Recorded at ${formattedTimestamp}`);
+  await expect(section).not.toContainText("2026-09-29T20:14:26Z");
   await expect(section).toContainText("security.example.com");
   await expect(section).toContainText("A vulnerability was found");
   await expect(section).toContainText("ScanFailed");

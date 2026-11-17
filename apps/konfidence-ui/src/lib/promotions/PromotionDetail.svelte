@@ -4,16 +4,13 @@
     import type { Promotion } from "./promotions.ts";
     import { approvalGate, referenceLabel, statusLabel, statusTone } from "./promotions.ts";
     import PromotionGates from "./PromotionGates.svelte";
+    import { formatTimestamp } from "./format-timestamp.ts";
 
     interface Props { promotion: Promotion; landscapes: readonly Landscape[]; }
     let { promotion, landscapes }: Props = $props();
     const approval = $derived(approvalGate(promotion));
     const approvalLabels: Record<string, string> = { Error: "Approval gate error", Pending: "Awaiting approval", Satisfied: "Approved" };
     const approvalLabel = $derived(approval ? approvalLabels[approval.state] ?? approval.state ?? "Unknown" : "No explicit-approval gate recorded");
-    const formatTimestamp = (value: string) => {
-        const date = new Date(value);
-        return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
-    };
     const fieldClass = "min-w-0 text-compact text-content-primary [overflow-wrap:anywhere]";
 </script>
 
