@@ -1,5 +1,5 @@
-import { goto } from "$app/navigation";
 import { page } from "$app/state";
+import { UrlNavigation } from "#lib/urlNavigation.svelte.ts";
 import type { PromotionFilter, PromotionUrlFilters } from "./filters.ts";
 
 const FILTER_PARAMS = ["landscapeId", "promotionStage", "promotionConfig"] as const;
@@ -7,16 +7,14 @@ type FilterParam = (typeof FILTER_PARAMS)[number];
 
 class PromotionFilters {
   query = $state("");
-  // Navigation commits asynchronously. Keep the latest requested URL, not a second
-  // rendered selection, so overlapping requests compose and retain one history entry.
-  private pending: { url: URL; state: App.PageState; replace: boolean } | undefined;
+  private navigation = new UrlNavigation();
 
   get selectedId(): string | undefined {
     return page.url.searchParams.get("promotion") ?? undefined;
   }
 
   get selectionPending(): boolean {
-    return this.pending?.url.searchParams.has("promotion") ?? false;
+    return this.navigation.pending && this.navigation.url.searchParams.has("promotion");
   }
 
   select = (id: string | undefined): void => {
@@ -24,24 +22,22 @@ class PromotionFilters {
       this.clearSelection();
       return;
     }
-    const currentId = this.pending
-      ? (this.pending.url.searchParams.get("promotion") ?? undefined)
-      : this.selectedId;
+    const currentId = this.navigation.url.searchParams.get("promotion") ?? undefined;
     if (currentId === id) {
       return;
     }
-    this.updateUrl(
+    this.navigation.update(
       (params) => params.set("promotion", id),
-      this.pending?.replace ?? this.selectedId !== undefined,
+      this.navigation.replace ?? this.selectedId !== undefined,
       {
-        ...(this.pending?.state ?? page.state),
-        overlayOrigin: currentId ? (this.pending?.state ?? page.state).overlayOrigin : "promotion",
+        ...this.navigation.state,
+        overlayOrigin: currentId ? this.navigation.state.overlayOrigin : "promotion",
       },
     );
   };
 
   clearSelection = (excludedId?: string): void => {
-    const requestedParams = (this.pending?.url ?? page.url).searchParams;
+    const requestedParams = this.navigation.url.searchParams;
     // Cleanup validated the committed selection. Do not erase a newer request.
     if (
       !requestedParams.has("promotion") ||
@@ -49,8 +45,8 @@ class PromotionFilters {
     ) {
       return;
     }
-    this.updateUrl((params) => params.delete("promotion"), true, {
-      ...(this.pending?.state ?? page.state),
+    this.navigation.update((params) => params.delete("promotion"), true, {
+      ...this.navigation.state,
       overlayOrigin: undefined,
     });
   };
@@ -83,25 +79,8 @@ class PromotionFilters {
     return Object.values(this.values).some((value) => value.trim() !== "");
   }
 
-  updateUrl(
-    mutate: (params: URLSearchParams) => void,
-    replace = false,
-    state: App.PageState = this.pending?.state ?? page.state,
-  ): void {
-    const next = new globalThis.URL((this.pending?.url ?? page.url).href);
-    mutate(next.searchParams);
-    const request = { replace, state, url: next };
-    this.pending = request;
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- Preserve the current resolved URL, including embedded mode.
-    void goto(next, { replace, reset: false, state }).finally(() => {
-      if (this.pending === request) {
-        this.pending = undefined;
-      }
-    });
-  }
-
   change = (param: FilterParam, value: string): void => {
-    this.updateUrl(
+    this.navigation.update(
       (params) => {
         if (value) {
           params.set(param, value);
@@ -113,20 +92,20 @@ class PromotionFilters {
         }
       },
       this.selectedId !== undefined,
-      { ...(this.pending?.state ?? page.state), overlayOrigin: undefined },
+      { ...this.navigation.state, overlayOrigin: undefined },
     );
   };
 
   clear = (): void => {
     this.query = "";
-    this.updateUrl(
+    this.navigation.update(
       (params) => {
         for (const param of FILTER_PARAMS) {
           params.delete(param);
         }
       },
       this.selectedId !== undefined,
-      { ...(this.pending?.state ?? page.state), overlayOrigin: undefined },
+      { ...this.navigation.state, overlayOrigin: undefined },
     );
   };
 }
