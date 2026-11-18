@@ -260,33 +260,12 @@ func setOverride(promotion *konfidence.VectorPromotion, overrideType konfidence.
 	}, timeout, interval).Should(Succeed())
 }
 
-// createPromotionWithTTL creates a VectorPromotion with TTLAfterFinished set.
-func createPromotionWithTTL(name, configRef string, ttl time.Duration) *konfidence.VectorPromotion {
-	promotion := &konfidence.VectorPromotion{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: testNamespace,
-		},
-		Spec: konfidence.VectorPromotionSpec{
-			VectorPromotionConfigName: configRef,
-			Source:                    templateSource("some-template"),
-			Target:                    stageTarget("some-stage"),
-			Vector:                    testVector,
-			Sequence:                  nextSequence(),
-			Gates:                     []konfidence.PromotionGate{},
-			TTLAfterFinished:          &metav1.Duration{Duration: ttl},
-		},
-	}
-	ExpectWithOffset(1, k8sClient.Create(ctx, promotion)).To(Succeed())
-	return promotion
-}
-
 // setSucceededCondition writes the Succeeded condition on a promotion directly,
 // together with the facts the controller would have recorded alongside it: an
 // active (Unknown) promotion passed its gates and started at transitionTime; a
 // finished (True/False) one completed at transitionTime. The execution
 // controller is not registered in this suite; tests drive promotion facts
-// manually to exercise the TTL and status propagation controllers.
+// manually to exercise retention and status propagation controllers.
 func setSucceededCondition(
 	promotion *konfidence.VectorPromotion,
 	status metav1.ConditionStatus,

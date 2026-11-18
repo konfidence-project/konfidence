@@ -16,4 +16,3 @@ spec:
   gates:
     - type: explicit-approval.konfidence.cloud
   sequence: 1
-  ttlAfterFinished: 1h

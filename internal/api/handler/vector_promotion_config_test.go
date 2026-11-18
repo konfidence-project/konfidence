@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"net/http"
-	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
@@ -20,7 +19,6 @@ func vectorPromotionConfigFixture(name, namespace string) *konfidence.VectorProm
 		Spec: konfidence.VectorPromotionConfigSpec{
 			Source:             konfidence.PromotionSourceReference{Kind: "Stage", Name: "src", Landscape: "dev"},
 			Target:             konfidence.PromotionTargetReference{Kind: "Stage", Name: "dst", Landscape: "prod"},
-			TTLAfterFinished:   &metav1.Duration{Duration: time.Hour},
 			KeepLastPromotions: &keepLast,
 		},
 	}
@@ -60,8 +58,6 @@ var _ = Describe("GetVectorPromotionConfigV1", func() {
 		Expect(ok.Id).To(Equal("cfg"))
 		Expect(ok.Source.Name).To(Equal("src"))
 		Expect(ok.Target.Name).To(Equal("dst"))
-		Expect(ok.TtlAfterFinished).NotTo(BeNil())
-		Expect(*ok.TtlAfterFinished).To(Equal("1h0m0s"))
 		Expect(ok.KeepLastPromotions).NotTo(BeNil())
 		Expect(*ok.KeepLastPromotions).To(Equal(5))
 
@@ -206,8 +202,6 @@ var _ = Describe("ListVectorPromotionConfigsV1", func() {
 		Expect(item.Id).To(Equal("cfg"))
 		Expect(item.Source.Name).To(Equal("src"))
 		Expect(item.Target.Name).To(Equal("dst"))
-		Expect(item.TtlAfterFinished).NotTo(BeNil())
-		Expect(*item.TtlAfterFinished).To(Equal("1h0m0s"))
 		Expect(item.KeepLastPromotions).NotTo(BeNil())
 		Expect(*item.KeepLastPromotions).To(Equal(5))
 		Expect(item.Promotions).To(BeEmpty())

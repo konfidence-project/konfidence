@@ -256,9 +256,12 @@ var _ = Describe("OcmAdapter", func() {
 
 		BeforeEach(func() {
 			artifactRef = compref.Ref{
-				Repository: &ociv1.Repository{BaseUrl: "https://registry.example.com"},
-				Component:  "github.com/example/service-a",
-				Version:    "0.1.0",
+				Repository: &ociv1.Repository{
+					Type:    ocmruntime.NewVersionedType(ociv1.Type, "v1"),
+					BaseUrl: "https://registry.example.com",
+				},
+				Component: "github.com/example/service-a",
+				Version:   "0.1.0",
 			}
 		})
 
@@ -554,6 +557,58 @@ var _ = Describe("OcmAdapter", func() {
 				gomega.Expect(manifest.Resources[1].Name).To(gomega.Equal("service-image"))
 				gomega.Expect(manifest.Resources[1].Type).To(gomega.Equal("ociImage"))
 				gomega.Expect(manifest.Resources[1].Content).To(gomega.Equal(ociImageJSON))
+			})
+		})
+
+		Context("with resource labels, a digest and a hosting repository", func() {
+			It("carries them through to the ArtifactManifest", func() {
+				manifestJSON := []byte(`{"type":"s3.konfidence.cloud","allowReuse":false}`)
+				accessJSON := []byte(`{"type":"localBlob/v1","localReference":"sha256:7f3a9c"}`)
+
+				manifestResource := descruntime.Resource{
+					ElementMeta: descruntime.ElementMeta{ObjectMeta: descruntime.ObjectMeta{Name: "artifact-manifest"}},
+					Type:        "cloud.konfidence.artifact.manifest",
+				}
+				widget := descruntime.Resource{
+					ElementMeta: descruntime.ElementMeta{ObjectMeta: descruntime.ObjectMeta{
+						Name:   "widget",
+						Labels: []descruntime.Label{{Name: "route", Value: []byte(`"/widget"`), Signing: true, Version: "v1"}},
+					}},
+					Type:   "s3.konfidence.cloud/v1alpha1",
+					Access: &ocmruntime.Raw{Data: accessJSON},
+					Digest: &descruntime.Digest{HashAlgorithm: "SHA-256", NormalisationAlgorithm: "genericBlobDigest/v1", Value: "7f3a9c"},
+				}
+				bare := descruntime.Resource{
+					ElementMeta: descruntime.ElementMeta{ObjectMeta: descruntime.ObjectMeta{Name: "bare"}},
+					Type:        "s3.konfidence.cloud/v1alpha1",
+					Access:      &ocmruntime.Raw{Data: accessJSON},
+				}
+
+				descriptor := buildDescriptor([]descruntime.Resource{manifestResource, widget, bare})
+
+				mockClient.EXPECT().Get(gomock.Any(), artifactRef).Return(descriptor, nil)
+				mockClient.EXPECT().GetLocalResource(gomock.Any(), artifactRef, manifestResource.ToIdentity()).
+					Return(inmemory.New(bytes.NewReader(manifestJSON)), &manifestResource, nil)
+
+				manifest, err := adapter.GetArtifactManifestByReference(ctx, artifactRef)
+
+				gomega.Expect(err).ToNot(gomega.HaveOccurred())
+				gomega.Expect(manifest.Resources).To(gomega.HaveLen(2))
+
+				By("copying labels and digest of a resource that has them")
+				gomega.Expect(manifest.Resources[0].Labels).To(gomega.Equal([]controller.OCMLabel{
+					{Name: "route", Value: []byte(`"/widget"`), Signing: true, Version: "v1"},
+				}))
+				gomega.Expect(manifest.Resources[0].Digest).To(gomega.Equal(&controller.OCMDigest{
+					HashAlgorithm: "SHA-256", NormalisationAlgorithm: "genericBlobDigest/v1", Value: "7f3a9c",
+				}))
+
+				By("leaving both empty for a resource without them")
+				gomega.Expect(manifest.Resources[1].Labels).To(gomega.BeEmpty())
+				gomega.Expect(manifest.Resources[1].Digest).To(gomega.BeNil())
+
+				By("serializing the hosting repository spec")
+				gomega.Expect(manifest.Repository).To(gomega.MatchJSON(`{"type":"OCIRepository/v1","baseUrl":"https://registry.example.com"}`))
 			})
 		})
 

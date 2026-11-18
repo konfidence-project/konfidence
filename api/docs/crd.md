@@ -651,6 +651,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `name` _string_ | Name is the OCM ComponentVersion name. |  |  |
 | `version` _string_ | Version is the OCM ComponentVersion version. |  | Optional: \{\} <br /> |
+| `repository` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Repository is the OCM repository specification for the component version, serialized the same<br />way the OCM runtime serializes repository specs (e.g. \{"type":"OCIRepository/v1","baseUrl":...\}).<br />Deployers use it to open the hosting repository for localBlob resources and other repo-anchored reads. |  | Optional: \{\} <br /> |
 | `resources` _[OCMResource](#ocmresource) array_ | Resources contains OCM resources belonging to this component. The structure is intentionally generic to support<br />the requirements of deployers targeting different runtimes. |  | Optional: \{\} <br /> |
 
 
@@ -688,6 +689,45 @@ _Appears in:_
 | `name` _string_ | Name is the resource name. |  |  |
 | `content` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Content holds raw resource data, typically an embedded manifest, file, or<br />binary payload. |  |  |
 | `type` _string_ | Type describes the resource type, following OCM conventions. |  |  |
+| `labels` _[OCMResourceLabel](#ocmresourcelabel) array_ | Labels is the resource's OCM Labels. Each entry mirrors an OCM descriptor<br />label (name, opaque JSON value, optional signing flag, optional version).<br />Deployers use these to read routing or other per-resource metadata without<br />re-opening the descriptor. |  | Optional: \{\} <br /> |
+| `digest` _[OCMResourceDigest](#ocmresourcedigest)_ | Digest is the descriptor-side digest of the resource, if present. Deployers<br />use it to verify downloaded content against the signed descriptor. |  | Optional: \{\} <br /> |
+
+
+### OCMResourceDigest
+
+
+
+OCMResourceDigest mirrors the OCM descriptor Digest at the deployer surface.
+
+
+
+_Appears in:_
+- [OCMResource](#ocmresource)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `hashAlgorithm` _string_ | HashAlgorithm is the algorithm applied to the normalized representation (OCM digest-algorithms). |  |  |
+| `normalisationAlgorithm` _string_ | NormalisationAlgorithm is how the descriptor or artifact content is normalized before hashing<br />(OCM normalization algorithms). |  | Optional: \{\} <br /> |
+| `value` _string_ | Value is the encoded digest. |  |  |
+
+
+### OCMResourceLabel
+
+
+
+OCMResourceLabel mirrors the OCM descriptor Label at the deployer surface.
+
+
+
+_Appears in:_
+- [OCMResource](#ocmresource)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ | Name is the label name. |  |  |
+| `value` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Value is the raw JSON value of the label, opaque to the API. Schemaless<br />keeps every JSON shape valid: controller-gen renders RawExtension as an<br />object-only schema, which would reject scalar values like "/widget". |  | Schemaless: \{\} <br /> |
+| `signing` _boolean_ | Signing indicates whether the label participates in OCM signing. |  | Optional: \{\} <br /> |
+| `version` _string_ | Version is an optional specification version of the label value. |  | Optional: \{\} <br /> |
 
 
 ### Parameters
@@ -1627,6 +1667,8 @@ VectorDeploymentSpec defines the desired state of a VectorDeployment.
 
 A VectorDeployment references a deployment vector stored as an OCM ComponentVersion in an OCI registry. The vector
 describes a complete, immutable set of artifacts and versions that should be deployed as a unit.
+A vector must contain at most one artifact for each OCM component name. Referencing the same artifact component
+more than once, including references to different versions, makes the vector invalid.
 
 The value must always be a fully qualified OCI URL and must resolve to a valid OCM ComponentVersion. The
 VectorDeployment spec is intended to be immutable. Any substantive change should result in a new VectorDeployment
@@ -1781,7 +1823,6 @@ spec:
   gates:
     - type: explicit-approval.konfidence.cloud
   sequence: 1
-  ttlAfterFinished: 1h
 ```
 
 ### VectorPromotionConfig
@@ -1823,7 +1864,6 @@ spec:
     landscape: sample-landscape
   gates:
     - type: explicit-approval.konfidence.cloud
-  ttlAfterFinished: 1h
   keepLastPromotions: 10
   keepOutstandingPromotions: 10
 ```
@@ -1844,8 +1884,7 @@ _Appears in:_
 | `source` _[PromotionSourceReference](#promotionsourcereference)_ | Source references the resource to promote from. |  |  |
 | `target` _[PromotionTargetReference](#promotiontargetreference)_ | Target references the Stage to promote to. |  |  |
 | `gates` _[PromotionGate](#promotiongate) array_ | Gates declares the gates every promotion created from this config must<br />pass before it executes. The list is snapshotted into each promotion at<br />creation; later edits only affect promotions created afterwards. An<br />empty list promotes immediately. |  | MaxItems: 32 <br />Optional: \{\} <br /> |
-| `ttlAfterFinished` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | TTLAfterFinished will be copied onto every VectorPromotion the drift<br />controller creates for this config. See<br />`VectorPromotionSpec.TTLAfterFinished`. |  | Optional: \{\} <br /> |
-| `keepLastPromotions` _integer_ | KeepLastPromotions bounds how many terminal VectorPromotions are<br />retained per config; the oldest beyond the bound are deleted. Retention<br />by count keeps an audit trail even when `ttlAfterFinished` is short.<br />Non-terminal promotions are never deleted and do not count toward the<br />bound. | 10 | Minimum: 0 <br />Optional: \{\} <br /> |
+| `keepLastPromotions` _integer_ | KeepLastPromotions keeps the newest terminal VectorPromotions per config<br />among those older than every non-terminal promotion. Cleanup of newer or<br />equal-sequence terminal promotions is deferred until older promotions finish;<br />they do not count toward this bound. With no non-terminal promotions, the<br />bound applies to all terminal promotions. A value of 0 deletes all eligible<br />terminal promotions. Non-terminal promotions are never deleted. | 10 | Minimum: 0 <br />Optional: \{\} <br /> |
 | `keepOutstandingPromotions` _integer_ | KeepOutstandingPromotions bounds how many gated and not yet processed VectorPromotions are<br />retained per config; the oldest beyond the bound are set to the terminal state "Superseded".<br />A value of 0 disables the bound and retains unlimited outstanding promotions. | 10 | Minimum: 0 <br />Optional: \{\} <br /> |
 
 
@@ -1886,7 +1925,6 @@ _Appears in:_
 | `target` _[PromotionTargetReference](#promotiontargetreference)_ | Target is a snapshot of the config's target reference at creation time.<br />Execution resolves and writes this target: approving a promotion approves<br />exactly this destination, regardless of later config edits. |  |  |
 | `vector` _string_ | Vector is the concrete OCM component version reference<br />(`<registry>//<component>:<version>`) pinned when the promotion was created. |  | MinLength: 1 <br /> |
 | `gates` _[PromotionGate](#promotiongate) array_ | Gates is an immutable snapshot of the config's gates at creation time.<br />The promotion does not execute until every gate has a `Satisfied` entry<br />in `status.gates`. An empty list promotes immediately. The field is<br />required: creators set an empty list rather than omitting it. |  | MaxItems: 32 <br /> |
-| `ttlAfterFinished` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | TTLAfterFinished defines how long the VectorPromotion should be kept after completion.<br />Once the TTL expires after the promotion finished (`status.completionTime`),<br />the resource is eligible for automatic deletion. If no TTL is set, no deletion happens. |  | Optional: \{\} <br /> |
 | `sequence` _integer_ | Sequence is a monotonic ordinal assigned by the creator (the config<br />reconciler, from the config's `status.sequence`). It is the sole<br />ordering between promotions of the same config; creation timestamps<br />only have second resolution and are never consulted. |  | Minimum: 0 <br /> |
 
 
@@ -2045,7 +2083,7 @@ _Appears in:_
 | `reconcileInterval` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | ReconcileInterval defines how often the assembly controller should check for drift.<br />If not set, the controller's default reconcile interval will be used. |  | Optional: \{\} <br /> |
 | `uploadTarget` _string_ | UploadTarget defines the target OCM component where the assembled vector will be uploaded. |  |  |
 | `base` _[VectorTemplateReference](#vectortemplatereference)_ | Base references another VectorTemplate whose most recently assembled vector<br />(status.latestVector) is used as the base for this vector's assembly. |  | Optional: \{\} <br />Optional: \{\} <br /> |
-| `components` _[Component](#component) array_ | Components lists the components to be included in the vector. |  | MinItems: 1 <br /> |
+| `components` _[Component](#component) array_ | Components lists the components to be included in the vector. After references and aliases are resolved, each<br />OCM component name may occur at most once in the resulting vector. A component listed here overrides an artifact<br />with the same OCM component name inherited from Base. |  | MinItems: 1 <br /> |
 | `credentials` _[Credentials](#credentials)_ | Credentials supplies credentials for OCM repositories<br />and signing/verification key material. |  | Optional: \{\} <br /> |
 | `verifyArtifacts` _[Verify](#verify)_ | VerifyArtifacts lists candidate signatures evaluated against every<br />artifact pulled into the assembly. Absence disables artifact<br />verification. |  | Optional: \{\} <br /> |
 | `verifyVector` _[Verify](#verify)_ | VerifyVector lists candidate signatures evaluated against any<br />vector the assembly fetches (base or pre-existing upload target).<br />Absence disables vector verification. |  | Optional: \{\} <br /> |

@@ -1,0 +1,16 @@
+# No parameters means deployment to the local cluster.
+apiVersion: konfidence.cloud/v1alpha1
+kind: DeploymentTarget
+metadata:
+  name: local-kustomize
+  namespace: kden-l-dev
+spec:
+  artifactType: kustomize.konfidence.cloud
+---
+apiVersion: konfidence.cloud/v1alpha1
+kind: DeploymentTarget
+metadata:
+  name: local-helm
+  namespace: kden-l-dev
+spec:
+  artifactType: helm.konfidence.cloud

@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-logr/logr"
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	"github.com/konfidence-project/konfidence/pkg/collection"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
@@ -492,10 +493,29 @@ func mapTaskManifestsToLandscape(taskManifests []TaskManifest) []konfidence.Task
 func mapArtifactResourcesToLandscape(resources []OCMResource) []konfidence.OCMResource {
 	landscapeResources := make([]konfidence.OCMResource, 0, len(resources))
 	for _, resource := range resources {
+		labels := make([]konfidence.OCMResourceLabel, len(resource.Labels))
+		for i, l := range resource.Labels {
+			labels[i] = konfidence.OCMResourceLabel{
+				Name:    l.Name,
+				Value:   runtime.RawExtension{Raw: l.Value},
+				Signing: l.Signing,
+				Version: l.Version,
+			}
+		}
+		var digest *konfidence.OCMResourceDigest
+		if resource.Digest != nil {
+			digest = &konfidence.OCMResourceDigest{
+				HashAlgorithm:          resource.Digest.HashAlgorithm,
+				NormalisationAlgorithm: resource.Digest.NormalisationAlgorithm,
+				Value:                  resource.Digest.Value,
+			}
+		}
 		landscapeResources = append(landscapeResources, konfidence.OCMResource{
 			Name:    resource.Name,
 			Content: runtime.RawExtension{Raw: resource.Content},
 			Type:    resource.Type,
+			Labels:  labels,
+			Digest:  digest,
 		})
 	}
 	return landscapeResources
@@ -588,9 +608,10 @@ func (r *VectorDeploymentReconciler) constructArtifactDeployment(
 			ArtifactType:  artifactManifest.Type,
 			TaskManifests: taskManifests,
 			Component: konfidence.OCMComponent{
-				Name:      ref.Component,
-				Version:   ref.Version,
-				Resources: artifactResources,
+				Name:       ref.Component,
+				Version:    ref.Version,
+				Repository: runtime.RawExtension{Raw: artifactManifest.Repository},
+				Resources:  artifactResources,
 			},
 		},
 	}
@@ -603,24 +624,51 @@ func (r *VectorDeploymentReconciler) resolveVector(
 	vd *konfidence.VectorDeployment,
 	vectorRef compref.Ref,
 ) (resolvedVector, error) {
+	var resolved resolvedVector
+
 	if vd.Status.ResolvedVectorOcm == "" {
 		descr, err := r.OcmAdapter.GetVectorDescriptor(ctx, vectorRef)
 		if err != nil {
-			return resolvedVector{}, fmt.Errorf("failed to fetch vector OCM for vector deployment %s : %w", vd.Name, err)
+			return resolvedVector{}, fmt.Errorf("failed to fetch vector OCM for vector deployment %s: %w", vd.Name, err)
 		}
-		return resolvedVector{
+
+		resolved = resolvedVector{
 			descriptorJSON: descr.DescriptorJSON,
 			artifactRefs:   descr.References,
 			config:         descr.Configuration,
 			configResolved: true,
-		}, nil
+		}
+	} else {
+		artifactRefs, err := artifactRefsFromStatus(vd.Status.ResolvedVectorOcm, vectorRef)
+		if err != nil {
+			return resolvedVector{}, fmt.Errorf("failed to parse artifact refs from status for vector deployment %s: %w", vd.Name, err)
+		}
+
+		resolved = resolvedVector{artifactRefs: artifactRefs}
 	}
 
-	artifactRefs, err := artifactRefsFromStatus(vd.Status.ResolvedVectorOcm, vectorRef)
-	if err != nil {
-		return resolvedVector{}, fmt.Errorf("failed to parse artifact refs from status for vector deployment %s: %w", vd.Name, err)
+	if err := validateArtifactReferences(resolved.artifactRefs); err != nil {
+		return resolvedVector{}, err
 	}
-	return resolvedVector{artifactRefs: artifactRefs}, nil
+
+	return resolved, nil
+}
+
+func validateArtifactReferences(refs []compref.Ref) error {
+	duplicates := collection.FindDuplicatesBy(refs, func(ref compref.Ref) string { return ref.Component })
+	if len(duplicates) == 0 {
+		return nil
+	}
+
+	duplicate := duplicates[0]
+	return &PermanentError{
+		Reason: konfidence.VectorDeploymentStalledReasonDuplicateArtifact,
+		Err: fmt.Errorf("vector contains artifact %q more than once with versions %q and %q",
+			duplicate.Duplicate.Component,
+			duplicate.First.Version,
+			duplicate.Duplicate.Version,
+		),
+	}
 }
 
 func (r *VectorDeploymentReconciler) ensureVectorDataConfigResolved(

@@ -303,6 +303,7 @@ Deleting the `DeploymentTarget` before deleting associated `ArtifactDeployments`
 * **Optional behavior:** Decide whether publishing results is optional for an artifact type and how an artifact with no results advances to readiness.
 
 ## 5. Vector association and artifact reuse
+A vector MUST contain at most one artifact for each OCM component name. An artifact MUST NOT appear more than once in a vector, including references to different versions of the artifact. This constraint does not prevent the same artifact from being referenced by several different vectors.
 
 * **Ownership and resource selection:** Core records each vector/artifact association in `VectorDeployment.status.resultingArtifactDeployments` and uses `ArtifactManifest.allowReuse` when creating the `ArtifactDeployment`. One artifact may be referenced by several vectors; the deployer for the artifact type handles vector-specific work.
 * **Interpretation of inputs / generic fields:** A reusable `ArtifactDeployment` MUST NOT depend on vector-specific runtime context. Vector-scoped authored data and aggregated deployment results are transported through `VectorData`. When reuse is enabled, a deployer MUST NOT infer a single vector from the artifact alone.
