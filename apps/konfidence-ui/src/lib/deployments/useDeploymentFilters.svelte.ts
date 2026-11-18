@@ -1,5 +1,5 @@
-import { goto } from "$app/navigation";
 import { page } from "$app/state";
+import { UrlNavigation } from "#lib/urlNavigation.svelte.ts";
 
 import { DEEP_LINK_PARAM } from "./params.js";
 
@@ -41,6 +41,7 @@ interface UseDeploymentFiltersOptions<Row extends MatchableRow, Status extends s
 class DeploymentFilters<Row extends MatchableRow, Status extends string> {
   query = $state("");
   status = $state<"" | Status>("");
+  readonly #navigation = new UrlNavigation();
 
   readonly #selectedId: () => string | undefined;
   readonly #rows: () => readonly Row[];
@@ -98,31 +99,25 @@ class DeploymentFilters<Row extends MatchableRow, Status extends string> {
     mutate: (params: URLSearchParams) => void,
     options: { replace?: boolean; state?: App.PageState } = {},
   ): void {
-    const next = new globalThis.URL(page.url.href);
-    mutate(next.searchParams);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- reusing the current page URL.
-    void goto(next, {
-      replace: options.replace,
-      reset: false,
-      state: options.state,
-    });
+    this.#navigation.update(mutate, options.replace, options.state);
   }
 
   openRow = (row: Row): void => {
-    if (this.selectedId === row.id) {
+    const currentId = this.#navigation.url.searchParams.get(DEEP_LINK_PARAM);
+    if (currentId === row.id) {
       return;
     }
     this.#updateUrl((params) => params.set(DEEP_LINK_PARAM, row.id), {
-      replace: this.panelOpen,
+      replace: this.#navigation.replace ?? this.panelOpen,
       state: {
-        ...page.state,
-        overlayOrigin: page.state.overlayOrigin ?? "deployment",
+        ...this.#navigation.state,
+        overlayOrigin: currentId ? this.#navigation.state.overlayOrigin : "deployment",
       },
     });
   };
 
   closePanel = (): void => {
-    if (!page.url.searchParams.has(DEEP_LINK_PARAM)) {
+    if (!this.#navigation.url.searchParams.has(DEEP_LINK_PARAM)) {
       return;
     }
     if (page.state.overlayOrigin === "deployment") {
@@ -131,7 +126,7 @@ class DeploymentFilters<Row extends MatchableRow, Status extends string> {
     }
     this.#updateUrl((params) => params.delete(DEEP_LINK_PARAM), {
       replace: true,
-      state: { ...page.state, overlayOrigin: undefined },
+      state: { ...this.#navigation.state, overlayOrigin: undefined },
     });
   };
 

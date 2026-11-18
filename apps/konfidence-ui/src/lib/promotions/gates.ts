@@ -13,8 +13,8 @@ const isPendingApproval = (gate: PromotionGate): boolean =>
   gate.type === EXPLICIT_APPROVAL_GATE && gate.state === "Pending";
 const satisfiedCount = (gates: readonly PromotionGate[]): number =>
   gates.filter((gate) => gate.state === "Satisfied").length;
-const gateTone = (gate: PromotionGate): string =>
-  ({ Error: "error", Pending: "queued", Satisfied: "healthy" })[gate.state] ?? "queued";
+const gateTone = (gate: PromotionGate): "healthy" | "error" | "queued" =>
+  ({ Error: "error", Pending: "queued", Satisfied: "healthy" } as const)[gate.state] ?? "queued";
 
 export {
   EXPLICIT_APPROVAL_GATE,
