@@ -98,8 +98,9 @@ api:
 
   # In-process, per-replica cache for OCM vector/artifact content read from the OCI registry.
   ocmCache:
-    # -- Maximum number of cached OCM content entries (LRU capacity). Set to 0 to
-    # disable the cache and read from the registry on every request.
+    # -- LRU cache capacity per OCM content type, for vector and artifact entries
+    # respectively. Each cache holds up to this many entries. Set to 0 to disable
+    # the cache and read from the registry on every request.
     size: 500
     # -- How long entries for mutable alias tags (e.g. "latest", "main") are
     # served before a refetch. Digest-pinned and semver refs never expire.
