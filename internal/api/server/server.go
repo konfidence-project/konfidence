@@ -24,15 +24,16 @@ import (
 
 // Server wraps an http.Server with graceful shutdown support.
 type Server struct {
-	cfg     config.Parsed
-	logger  *slog.Logger
-	handler http.Handler
+	cfg          config.Parsed
+	logger       *slog.Logger
+	handler      http.Handler
+	authenticate func(http.Handler) http.Handler
 }
 
 // New creates a Server from validated config and an http.Handler. Signal
 // handling belongs in the caller (cmd layer).
-func New(cfg config.Parsed, logger *slog.Logger, apiHandler http.Handler) *Server {
-	return &Server{cfg: cfg, logger: logger, handler: apiHandler}
+func New(cfg config.Parsed, logger *slog.Logger, apiHandler http.Handler, authenticate func(http.Handler) http.Handler) *Server {
+	return &Server{cfg: cfg, logger: logger, handler: apiHandler, authenticate: authenticate}
 }
 
 // ListenAndServe starts the HTTP server and blocks until the context is
@@ -169,14 +170,16 @@ func (s *Server) router() (http.Handler, error) {
 	r.Method(http.MethodGet, "/readyz", middleware.Handle(s.logger, handler.Readyz))
 	r.Handle("/api", s.handler)
 	r.Handle("/api/*", s.handler)
-	r.Get("/docs", func(w http.ResponseWriter, r *http.Request) {
+
+	docs := r.With(s.authenticate)
+	docs.Get("/docs", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/docs/", http.StatusPermanentRedirect)
 	})
-	r.Get("/docs/openapi.json", func(w http.ResponseWriter, _ *http.Request) {
+	docs.Get("/docs/openapi.json", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(specJSON)
 	})
-	r.Handle("/docs/*", docsHandler)
+	docs.Handle("/docs/*", docsHandler)
 
 	if s.cfg.Server.UIAssetPath != "" {
 		uiHandler, err := ui.New(os.DirFS(s.cfg.Server.UIAssetPath))

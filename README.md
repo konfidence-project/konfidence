@@ -121,9 +121,11 @@ assets are also embedded in the API binary and do not require an external
 CDN.
 
 Open the explorer from the **API Explorer** button in the authenticated
-dashboard. Requests made through Swagger UI target the relative `/api`
-server and include the browser's existing `kden-session` cookie, so they
-use the same authorization as dashboard requests.
+dashboard. The explorer, embedded specification, and Swagger UI assets require
+a valid `kden-session`; unauthenticated requests receive `401 Unauthorized`.
+Requests made through Swagger UI target the relative `/api` server and include
+the browser's existing session cookie, so they use the same authorization as
+dashboard requests.
 
 ### Typed API client
 

@@ -19,6 +19,34 @@ import (
 	nethttpmiddleware "github.com/oapi-codegen/nethttp-middleware"
 )
 
+func newAuthenticator(logger *slog.Logger, store session.Store, authRepo authdomain.Repository, cfg config.Parsed) authenticator {
+	return authenticator{
+		logger:              logger,
+		store:               store,
+		authRepo:            authRepo,
+		cookieName:          cfg.Session.Cookie.Name,
+		expireOnTokenExpiry: slices.Contains(cfg.OIDC.Scopes, "offline_access"),
+	}
+}
+
+// RequireSession protects handlers that require an existing browser session
+// but are not operations in the OpenAPI specification.
+func RequireSession(logger *slog.Logger, store session.Store, cfg config.Parsed) func(http.Handler) http.Handler {
+	authenticator := newAuthenticator(logger, store, nil, cfg)
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if _, err := authenticator.loadSession(r.Context(), r); err != nil {
+				logger.InfoContext(r.Context(), "session authentication failed", "path", r.URL.Path, "error", err)
+				apierror.Write(w, apierror.NewUnauthorized())
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 type authenticator struct {
 	logger              *slog.Logger
 	store               session.Store
@@ -47,16 +75,7 @@ func Authenticator(logger *slog.Logger, store session.Store, authRepo authdomain
 		)
 	}
 
-	authenticator := authenticator{
-		logger:     logger,
-		store:      store,
-		authRepo:   authRepo,
-		cookieName: cfg.Session.Cookie.Name,
-		expireOnTokenExpiry: slices.Contains(
-			cfg.OIDC.Scopes,
-			"offline_access",
-		),
-	}
+	authenticator := newAuthenticator(logger, store, authRepo, cfg)
 	validate := nethttpmiddleware.OapiRequestValidatorWithOptions(spec, &nethttpmiddleware.Options{
 		DoNotValidateServers: true,
 		Prefix:               "/api",
@@ -96,28 +115,9 @@ func (a *authenticator) authenticate(ctx context.Context, input *openapi3filter.
 func (a *authenticator) authenticateSession(ctx context.Context, input *openapi3filter.AuthenticationInput) error {
 	request := input.RequestValidationInput.Request
 
-	// a supplied Authorization header must not silently fall back to a cookie.
-	if request.Header.Get("Authorization") != "" {
-		return errors.New("authorization header requires bearer authentication")
-	}
-
-	cookie, err := request.Cookie(a.cookieName)
+	storedSession, err := a.loadSession(ctx, request)
 	if err != nil {
-		return fmt.Errorf("getting session cookie: %w", err)
-	}
-
-	storedSession, err := a.store.Get(ctx, cookie.Value)
-	if err != nil {
-		a.logger.Error("failed to get session", "error", err)
-		return fmt.Errorf("getting session: %w", err)
-	}
-
-	if storedSession == nil {
-		return a.expireSession(ctx, cookie.Value, errors.New("no matching session found"))
-	}
-
-	if a.expireOnTokenExpiry && !storedSession.IsTokenExpiryZero() && storedSession.TokenExpiry <= time.Now().Unix() {
-		return a.expireSession(ctx, cookie.Value, errors.New("session token expired"))
+		return err
 	}
 
 	projectRoles, err := a.authRepo.GetProjectRoles(ctx, storedSession.Groups)
@@ -128,6 +128,34 @@ func (a *authenticator) authenticateSession(ctx context.Context, input *openapi3
 	storedSession.ProjectRoles = projectRoles
 	*request = *request.WithContext(session.NewContext(request.Context(), storedSession))
 	return nil
+}
+
+func (a *authenticator) loadSession(ctx context.Context, request *http.Request) (*session.Session, error) {
+	// a supplied Authorization header must not silently fall back to a cookie.
+	if request.Header.Get("Authorization") != "" {
+		return nil, errors.New("authorization header requires bearer authentication")
+	}
+
+	cookie, err := request.Cookie(a.cookieName)
+	if err != nil {
+		return nil, fmt.Errorf("getting session cookie: %w", err)
+	}
+
+	storedSession, err := a.store.Get(ctx, cookie.Value)
+	if err != nil {
+		a.logger.Error("failed to get session", "error", err)
+		return nil, fmt.Errorf("getting session: %w", err)
+	}
+
+	if storedSession == nil {
+		return nil, a.expireSession(ctx, cookie.Value, errors.New("no matching session found"))
+	}
+
+	if a.expireOnTokenExpiry && !storedSession.IsTokenExpiryZero() && storedSession.TokenExpiry <= time.Now().Unix() {
+		return nil, a.expireSession(ctx, cookie.Value, errors.New("session token expired"))
+	}
+
+	return storedSession, nil
 }
 
 func (a *authenticator) authenticateBearer(ctx context.Context, input *openapi3filter.AuthenticationInput) error {
