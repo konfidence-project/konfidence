@@ -1,114 +1,106 @@
 <script lang="ts">
-    import ActivityFeed from "#lib/gallery/sections/ActivityFeed.svelte";
-    import Atoms from "#lib/gallery/sections/Atoms.svelte";
-    import Buttons from "#lib/gallery/sections/Buttons.svelte";
-    import Charts from "#lib/gallery/sections/Charts.svelte";
-    import Colors from "#lib/gallery/sections/Colors.svelte";
-    import DataBlocks from "#lib/gallery/sections/DataBlocks.svelte";
-    import Feedback from "#lib/gallery/sections/Feedback.svelte";
-    import Forms from "#lib/gallery/sections/Forms.svelte";
-    import Hero from "#lib/gallery/sections/Hero.svelte";
-    import Icons from "#lib/gallery/sections/Icons.svelte";
-    import Lists from "#lib/gallery/sections/Lists.svelte";
-    import LogsAndCode from "#lib/gallery/sections/LogsAndCode.svelte";
-    import MessageStrips from "#lib/gallery/sections/MessageStrips.svelte";
-    import Misc from "#lib/gallery/sections/Misc.svelte";
-    import Navigation from "#lib/gallery/sections/Navigation.svelte";
-    import Overlays from "#lib/gallery/sections/Overlays.svelte";
-    import Pipeline from "#lib/gallery/sections/Pipeline.svelte";
-    import Shell from "#lib/gallery/sections/Shell.svelte";
-    import ShellPatterns from "#lib/gallery/sections/ShellPatterns.svelte";
-    import Signature from "#lib/gallery/sections/Signature.svelte";
-    import StatusBadges from "#lib/gallery/sections/StatusBadges.svelte";
-    import Tags from "#lib/gallery/sections/Tags.svelte";
-    import Typography from "#lib/gallery/sections/Typography.svelte";
+    import { resolve } from "$app/paths";
+    import { page } from "$app/state";
+    import { afterNavigate, beforeNavigate, goto } from "$app/navigation";
+    import { SvelteURL } from "svelte/reactivity";
+    import CatalogSearch from "#lib/gallery/CatalogSearch.svelte";
+    import CatalogItem from "#lib/gallery/CatalogItem.svelte";
+    import { CATALOG, entryId, searchCatalog, selectedEntry } from "#lib/gallery/catalog.ts";
+    import type { CatalogEntry } from "#lib/gallery/catalog.ts";
+    import { watchGalleryViewport } from "#lib/gallery/gallery-viewport.ts";
+    import type { GalleryViewport } from "#lib/gallery/gallery-viewport.ts";
 
-    const TOC: readonly { id: string; label: string; status: "implemented" | "partial" | "placeholder" }[] = [
-        { id: "signature", label: "Signature", status: "implemented" },
-        { id: "foundation-colors", label: "Colors", status: "implemented" },
-        { id: "foundation-tags", label: "Tags", status: "placeholder" },
-        { id: "foundation-typography", label: "Typography", status: "implemented" },
-        { id: "foundation-atoms", label: "Atoms", status: "placeholder" },
-        { id: "icons", label: "Icons", status: "implemented" },
-        { id: "buttons", label: "Buttons", status: "implemented" },
-        { id: "status-badges", label: "Status badges", status: "implemented" },
-        { id: "forms", label: "Forms", status: "partial" },
-        { id: "navigation", label: "Navigation", status: "partial" },
-        { id: "shell", label: "App shell", status: "implemented" },
-        { id: "shell-patterns", label: "Shell patterns", status: "partial" },
-        { id: "data-blocks", label: "Data blocks", status: "partial" },
-        { id: "lists", label: "Lists", status: "partial" },
-        { id: "pipeline", label: "Pipeline", status: "partial" },
-        { id: "hero", label: "Page header", status: "partial" },
-        { id: "logs-code", label: "Logs & code", status: "placeholder" },
-        { id: "feedback", label: "Feedback", status: "partial" },
-        { id: "message-strips", label: "Message strips", status: "placeholder" },
-        { id: "activity-feed", label: "Activity feed", status: "placeholder" },
-        { id: "charts", label: "Charts", status: "placeholder" },
-        { id: "misc", label: "Misc.", status: "partial" },
-        { id: "overlays", label: "Overlays", status: "partial" },
-    ];
+    let query = $state("");
+    let navigation = $state<HTMLElement>();
+    let gallery = $state<HTMLElement>();
+    let viewport = $state<GalleryViewport>();
+    let statuses = $state<Record<CatalogEntry["status"], boolean>>({ implemented: true, planned: false });
+    const currentUrl = $derived(page.shallow?.url ?? page.url);
+    const selected = $derived(selectedEntry(currentUrl));
+    const searching = $derived(query.trim().length > 0);
+    const matchesStatus = (entry: CatalogEntry): boolean => statuses[entry.status] || entry.name === selected?.name;
+    const entries = $derived(searchCatalog(query).filter((entry) => searching || matchesStatus(entry)));
+
+    // Normalize legacy bookmarks after hydration so SvelteKit, rather than an
+    // effect racing its scroll restoration, owns the destination and history.
+    beforeNavigate(({ shallow, type }) => { if (!shallow || type !== "goto") {viewport?.pause();} });
+    afterNavigate(({ shallow, type }) => {
+        if (shallow && type === "goto") {return;}
+        const entry = selectedEntry(currentUrl);
+        if (entry && currentUrl.hash !== `#${entryId(entry)}`) {
+            void goto(resolve(`/#${entryId(entry)}`), { replace: true });
+        }
+        viewport?.settleNavigation();
+    });
+
+    $effect(() => {
+        if (!gallery) {return;}
+        const observer = watchGalleryViewport(gallery, (id) => {
+            const entry = CATALOG.find((candidate) => entryId(candidate) === id);
+            if (!entry || entry.name === selected?.name) {return;}
+            const url = new SvelteURL(currentUrl.href);
+            url.searchParams.delete("component");
+            // Shallow replacement preserves focus, scroll, page state and history.
+            void goto(resolve(url.search ? `/?${url.searchParams.toString()}#${id}` : `/#${id}`), { replace: true, reset: false, shallow: true, state: page.state });
+        });
+        viewport = observer;
+        return () => observer.destroy();
+    });
+
+    // Clear search before native link navigation measures its hash destination.
+    // Modified clicks open another tab/window without changing this page's search.
+    const selectComponent = (event: MouseEvent): void => {
+        if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && !event.defaultPrevented) { viewport?.pause(); query = ""; }
+    };
+
+    const navigateResults = (event: KeyboardEvent): void => {
+        const links = [...(navigation?.querySelectorAll<HTMLAnchorElement>("a") ?? [])];
+        const index = links.findIndex((link) => link.matches(":focus"));
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            let next = index + (event.key === "ArrowDown" ? 1 : -1);
+            if (index === -1) {next = event.key === "ArrowDown" ? 0 : links.length - 1;}
+            links[(next + links.length) % links.length]?.focus();
+        } else if (event.key === "Enter" && event.target instanceof HTMLInputElement) {
+            links[0]?.click();
+        } else if (event.key === "Escape") { query = ""; }
+    };
 </script>
 
-<div class="page grid grid-cols-[220px_1fr] items-start gap-8 [@media(max-width:900px)]:grid-cols-1">
-    <aside class="toc sticky top-[68px] max-h-[calc(100vh-88px)] overflow-y-auto py-2 pr-1 [@media(max-width:900px)]:static" aria-label="Sections">
-        <p class="toc__title mb-2 px-2 text-meta font-semibold tracking-[0.06em] text-content-tertiary uppercase">Sections</p>
-        <nav>
-            <ol class="m-0 list-none p-0">
-                {#each TOC as entry (entry.id)}
+<svelte:head><title>{selected ? `${selected.name} · ` : ""}Konfidence design system</title></svelte:head>
+
+<div class="grid grid-cols-[280px_minmax(0,1fr)] items-start gap-8 [@media(max-width:900px)]:grid-cols-1">
+    <aside class="sticky top-[68px] max-h-[calc(100vh-88px)] overflow-y-auto py-2 pr-1 [@media(max-width:900px)]:static [@media(max-width:900px)]:max-h-[50vh]" aria-label="Design system catalog">
+        <CatalogSearch bind:query onkeydown={navigateResults} />
+        <div class="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 px-2 text-meta text-content-tertiary" role="group" aria-label="Component status legend">
+            <button type="button" aria-pressed={statuses.implemented} onclick={() => statuses.implemented = !statuses.implemented} class={["inline-flex items-center gap-1.5 rounded-base border px-2 py-1 focus-visible:outline-2 focus-visible:outline-outline-focus", statuses.implemented ? "border-outline-default bg-surface-subtle font-semibold text-content-primary" : "border-transparent hover:bg-surface-subtle"]}><span class="inline-block size-2 rounded-full bg-status-healthy-solid" aria-hidden="true"></span>Implemented</button>
+            <button type="button" aria-pressed={statuses.planned} onclick={() => statuses.planned = !statuses.planned} class={["inline-flex items-center gap-1.5 rounded-base border px-2 py-1 focus-visible:outline-2 focus-visible:outline-outline-focus", statuses.planned ? "border-outline-default bg-surface-subtle font-semibold text-content-primary" : "border-transparent hover:bg-surface-subtle"]}><span class="inline-block size-2 rounded-full bg-outline-default" aria-hidden="true"></span>Planned</button>
+        </div>
+        <nav bind:this={navigation} aria-label="Components">
+            <ul class="m-0 list-none p-0">
+                {#each entries as entry (entry.name)}
                     <li>
-                        <a class="flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-compact text-content-secondary no-underline hover:bg-surface-subtle hover:text-content-primary" href={`#${entry.id}`}>
-                            <span>{entry.label}</span>
-                            <span class={[
-                                "toc__dot inline-block size-2 rounded-full",
-                                entry.status === "implemented" && "bg-status-healthy-solid",
-                                entry.status === "partial" && "bg-status-warning-solid",
-                                entry.status === "placeholder" && "bg-outline-default",
-                            ]} data-status={entry.status} aria-hidden="true"></span>
+                        <a href={resolve(`/#${entryId(entry)}`)} aria-label={entry.name} aria-describedby={`catalog-status-${entry.name}`} aria-current={selected?.name === entry.name ? "location" : undefined} onclick={selectComponent} onkeydown={navigateResults} class={["flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-compact no-underline hover:bg-surface-subtle", selected?.name === entry.name ? "bg-surface-subtle font-semibold text-content-primary" : "text-content-secondary"]}>
+                            <span>{entry.name}</span>
+                            <span id={`catalog-status-${entry.name}`} role="img" aria-label={entry.status === "implemented" ? "Implemented" : "Planned"} title={entry.status === "implemented" ? "Implemented" : "Planned"} class={["inline-block size-2 shrink-0 rounded-full", entry.status === "implemented" ? "bg-status-healthy-solid" : "bg-outline-default"]}></span>
                         </a>
                     </li>
-                {/each}
-            </ol>
+                {:else}<li class="px-2.5 py-3 text-compact text-content-tertiary" role="status">No matching components.</li>{/each}
+            </ul>
         </nav>
-        <div class="toc__legend mt-4 flex flex-col gap-1 px-2.5 py-2 text-meta text-content-tertiary [&>span]:inline-flex [&>span]:items-center [&>span]:gap-1.5">
-            <span><span class="toc__dot inline-block size-2 rounded-full bg-status-healthy-solid" data-status="implemented"></span>Live</span>
-            <span><span class="toc__dot inline-block size-2 rounded-full bg-status-warning-solid" data-status="partial"></span>Partial</span>
-            <span><span class="toc__dot inline-block size-2 rounded-full bg-outline-default" data-status="placeholder"></span>Pending</span>
-        </div>
     </aside>
 
-    <div class="gallery">
-        <header class="gallery__header mb-8">
-            <p class="gallery__eyebrow mb-1.5 text-meta font-semibold tracking-[0.06em] text-content-tertiary uppercase">Style guide</p>
-            <h1 class="gallery__title mb-3 text-display font-display tracking-[-1px] text-content-primary">Konfidence design system</h1>
-            <p class="gallery__lead m-0 max-w-[720px] text-body leading-[1.6] text-content-secondary">
-                Explore the design tokens, components and patterns below. Pending components
-                include a list of planned primitives and a link to the roadmap.
-            </p>
+    <div bind:this={gallery} class="min-w-0">
+        <header class="mb-8">
+            <p class="mb-1.5 text-meta font-semibold tracking-wide text-content-tertiary uppercase">Style guide</p>
+            <h1 class="text-display font-display tracking-[-1px] text-content-primary">Konfidence design system</h1>
+            <p class="mt-3 text-body text-content-secondary">Search across all components. Selecting a result restores the status filters; the URL-selected component always stays visible.</p>
         </header>
-
-        <Signature />
-        <Colors />
-        <Tags />
-        <Typography />
-        <Atoms />
-        <Icons />
-        <Buttons />
-        <StatusBadges />
-        <Forms />
-        <Navigation />
-        <Shell />
-        <ShellPatterns />
-        <DataBlocks />
-        <Lists />
-        <Pipeline />
-        <Hero />
-        <LogsAndCode />
-        <Feedback />
-        <MessageStrips />
-        <ActivityFeed />
-        <Charts />
-        <Misc />
-        <Overlays />
+        {#each CATALOG as entry (entry.name)}
+            <CatalogItem {entry} hidden={!searching && !matchesStatus(entry)} />
+        {/each}
+        {#if !searching && !statuses.implemented && !statuses.planned && !selected}
+            <p class="rounded-base border border-outline-subtle bg-surface-card p-5 text-body text-content-secondary" role="status">Select Implemented or Planned to show components.</p>
+        {/if}
     </div>
 </div>

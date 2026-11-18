@@ -5,9 +5,10 @@
         Menu,
         ProjectSelection,
     } from "@konfidence/design-system/components";
-    import NotYetImplemented from "../NotYetImplemented.svelte";
     import Sample from "../Sample.svelte";
     import Section from "../Section.svelte";
+
+    let { name = "ProjectSelection" }: { name?: string } = $props();
 
     interface DemoProject {
         id: string;
@@ -38,12 +39,11 @@
 </script>
 
 <Section
-    id="shell-patterns"
-    title="Shell patterns"
-    subtitle="Command palette, tabs-with-overflow, status bar — plus the real components already shipped for user menu, avatar groups, and project switcher. All interactive with dummy data."
-    status="partial"
+    id={name}
+    title={name}
 >
     <div class="stack flex flex-col gap-5">
+        {#if name === "ProjectSelection"}
         <Sample
             title="Project switcher"
             description="Real <ProjectSelection> composed with <Menu>. Click to pick a project."
@@ -76,9 +76,15 @@
             <span class="log rounded-md bg-surface-subtle px-2 py-[3px] font-mono text-meta text-content-secondary">Active: <b>{selectedProject.name}</b></span>
         </Sample>
 
-        <Sample title="Avatar & AvatarGroup">
+        {/if}
+        {#if name === "Avatar"}
+        <Sample title="Initials and online state">
             <Avatar initials="KO" ariaLabel="K. O'Malley" />
             <Avatar initials="MB" orbit ariaLabel="M. Barnes (online)" />
+        </Sample>
+        {/if}
+        {#if name === "AvatarGroup"}
+        <Sample title="Avatar group">
             <AvatarGroup>
                 <Avatar initials="AA" />
                 <Avatar initials="BB" />
@@ -87,8 +93,11 @@
             </AvatarGroup>
         </Sample>
 
+        {/if}
+        {#if name === "Menu"}
         <Sample
             title="User menu"
+            previewHeight={480}
             description="Real <Menu.*> family — click the button to open. Selection is logged below."
         >
             <Menu positioning={{ placement: "bottom-end" }} onSelect={handleUserMenu}>
@@ -115,14 +124,6 @@
             {/if}
         </Sample>
 
-        <NotYetImplemented
-            note="Additional shell patterns from the reference design are still pending."
-            planned={[
-                "Tabs with overflow menu",
-                "Command palette / global search",
-                "Status bar (footer chrome)",
-                "In-context help tour",
-            ]}
-        />
+        {/if}
     </div>
 </Section>

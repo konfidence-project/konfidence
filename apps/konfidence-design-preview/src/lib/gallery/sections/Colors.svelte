@@ -12,11 +12,13 @@
         STATUS_ROLES,
         TEAL_RAMP,
     } from "#lib/tokens/read-tokens.ts";
+
+    let { name = "Colors" }: { name?: string } = $props();
 </script>
 
 <Section
     id="foundation-colors"
-    title="Foundation · Colors"
+    title={name}
     subtitle="Palette ramps, gradients, glows and status roles rendered live from tokens.css."
     status="implemented"
 >

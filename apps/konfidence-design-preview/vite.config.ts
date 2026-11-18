@@ -1,10 +1,12 @@
 import adapter from "@sveltejs/adapter-static";
 import { defineConfig } from "vite";
 import { sveltekit } from "@sveltejs/kit/vite";
+import { playgroundPlugin } from "./src/lib/playground/vite-plugin.ts";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   plugins: [
+    playgroundPlugin(import.meta.dirname),
     {
       configurePreviewServer: (server) => {
         server.middlewares.use((request, _response, next) => {

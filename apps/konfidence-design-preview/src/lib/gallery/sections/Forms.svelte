@@ -1,8 +1,9 @@
 <script lang="ts">
     import { SearchInput, Select } from "@konfidence/design-system/components";
-    import NotYetImplemented from "../NotYetImplemented.svelte";
     import Sample from "../Sample.svelte";
     import Section from "../Section.svelte";
+
+    let { name = "SearchInput" }: { name?: string } = $props();
 
     let search = $state("");
     let searchDisabled = $state("");
@@ -17,12 +18,11 @@
 </script>
 
 <Section
-    id="forms"
-    title="Forms & switches"
-    subtitle="Real <SearchInput> and <Select> from @konfidence/design-system. Additional form primitives are still on the roadmap."
-    status="partial"
+    id={name}
+    title={name}
 >
     <div class="stack flex flex-col gap-5">
+        {#if name === "SearchInput"}
         <Sample title="SearchInput" description="Debounced-ready search field with SAP-Icons `search` glyph and a clear button.">
             <SearchInput bind:value={search} placeholder="Search artifacts…" />
             <span class="log rounded-md bg-surface-subtle px-2 py-[3px] font-mono text-meta text-content-secondary">value = <b>{search || "(empty)"}</b></span>
@@ -32,6 +32,8 @@
             <SearchInput bind:value={searchDisabled} placeholder="Disabled" disabled />
         </Sample>
 
+        {/if}
+        {#if name === "Select"}
         <Sample title="Select" description="Native <select> styled with Konfidence tokens; focus-glow follows the amber rule.">
             <Select bind:value={stage} aria-label="Deployment stage">
                 <option value="dev">Development</option>
@@ -49,15 +51,6 @@
             <span class="log rounded-md bg-surface-subtle px-2 py-[3px] font-mono text-meta text-content-secondary">stage = <b>{stage}</b> · region = <b>{region || "(none)"}</b></span>
         </Sample>
 
-        <NotYetImplemented
-            note="Skeleton v5 provides the underlying primitives (Switch, SegmentedControl, checkbox, radio). Konfidence has not yet published its opinionated wrappers with amber focus glow and warm-tinted validation states."
-            planned={[
-                "<TextInput>",
-                "<Checkbox>",
-                "<Radio> / <RadioGroup>",
-                "<Switch variant='amber' | 'onoff' | 'status' | 'segment'>",
-                "Amber focus glow across form controls",
-            ]}
-        />
+        {/if}
     </div>
 </Section>

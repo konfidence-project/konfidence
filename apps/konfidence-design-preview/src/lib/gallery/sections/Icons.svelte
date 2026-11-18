@@ -29,11 +29,12 @@
         "upload",
         "user-edit",
     ] as const;
+    let { name = "Icons" }: { name?: string } = $props();
 </script>
 
 <Section
     id="icons"
-    title="Icons"
+    title={name}
     subtitle="Curated SAP-Icons v5 subset (Apache-2.0), rendered on demand via the `<ui5-icon>` web component (no DS-level wrapper)."
     status="implemented"
 >

@@ -1,13 +1,16 @@
 <script lang="ts">
     import type { Snippet } from "svelte";
+    import Playground from "../playground/Playground.svelte";
 
     interface Props {
         title?: string;
         description?: string;
         children: Snippet;
+        source?: string;
+        previewHeight?: number;
     }
 
-    let { title, description, children }: Props = $props();
+    let { title, description, children, source, previewHeight }: Props = $props();
 </script>
 
 <figure class="sample m-0 flex flex-col gap-3 rounded-base border border-dashed border-outline-subtle bg-surface-default p-4">
@@ -18,6 +21,6 @@
         </figcaption>
     {/if}
     <div class="sample__body flex flex-wrap items-center gap-3">
-        {@render children()}
+        {#if source}<Playground {source} {title} {previewHeight} />{:else}{@render children()}{/if}
     </div>
 </figure>

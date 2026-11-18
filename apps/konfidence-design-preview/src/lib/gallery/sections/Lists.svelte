@@ -1,8 +1,9 @@
 <script lang="ts">
     import { Button, ExpandableGroup, SelectableRow } from "@konfidence/design-system/components";
-    import NotYetImplemented from "../NotYetImplemented.svelte";
     import Sample from "../Sample.svelte";
     import Section from "../Section.svelte";
+
+    let { name = "ExpandableGroup" }: { name?: string } = $props();
 
     let selectedSingle = $state<string | undefined>("first");
     let selectedMultiple = $state<string | undefined>("first");
@@ -11,8 +12,8 @@
     let actionCount = $state(0);
 </script>
 
-<Section id="lists" title="Lists & rows" subtitle="Flexible row content with selection, expansion and independent actions." status="partial">
-    <div class="mb-5 grid items-start gap-4 xl:grid-cols-2">
+<Section id={name} title={name} subtitle="Rows composed with their group: controlled and local selection, expansion and independent actions.">
+    <div class="mb-5 grid items-start gap-4">
         <Sample title="Single-line rows" description="Free row content, with an optional independent action.">
             <div class="w-full min-w-0">
                 <ExpandableGroup ariaLabel="Single-line items" expanded bind:selectedValue={selectedSingle}>
@@ -83,5 +84,4 @@
             </div>
         </Sample>
     </div>
-    <NotYetImplemented planned={["<ActivityRow>", "<FilterCard>"]} />
 </Section>

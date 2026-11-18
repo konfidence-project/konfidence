@@ -1,8 +1,9 @@
 <script lang="ts">
     import { Button, SidePanel } from "@konfidence/design-system/components";
-    import NotYetImplemented from "../NotYetImplemented.svelte";
     import Sample from "../Sample.svelte";
     import Section from "../Section.svelte";
+
+    let { name = "SidePanel" }: { name?: string } = $props();
 
     let panelOpen = $state(false);
     let footerOpen = $state(false);
@@ -10,13 +11,13 @@
 
 <Section
     id="overlays"
-    title="Dialogs & side panels"
-    subtitle="Real <SidePanel> from @konfidence/design-system (right-anchored Skeleton Dialog with backdrop, drag/keyboard resizable left edge). Modal dialogs and master-detail layout are still on the roadmap."
-    status="partial"
+    title={name}
+    subtitle="Right-anchored details drawer with optional footer."
 >
     <div class="stack flex flex-col gap-5">
         <Sample
             title="SidePanel — details drawer"
+            previewHeight={480}
             description="Right-anchored, modal, dismissable via backdrop, ESC, or the close button."
         >
             <Button variant="primary" onclick={() => (panelOpen = true)}>Open details</Button>
@@ -34,6 +35,7 @@
 
         <Sample
             title="SidePanel — with footer"
+            previewHeight={480}
             description="Footer snippet is anchored to the bottom of the panel."
         >
             <Button variant="secondary" onclick={() => (footerOpen = true)}>Open with footer</Button>
@@ -51,10 +53,6 @@
             </SidePanel>
         </Sample>
 
-        <NotYetImplemented
-            note="Standalone confirmation dialogs and master-detail layouts are not yet available."
-            planned={["<Dialog> / <ConfirmDialog>", "<MasterDetail> layout"]}
-        />
     </div>
 </Section>
 

@@ -2,15 +2,18 @@
     import { Button, IconButton } from "@konfidence/design-system/components";
     import Sample from "../Sample.svelte";
     import Section from "../Section.svelte";
+
+    let { name = "Button" }: { name?: string } = $props();
 </script>
 
 <Section
-    id="buttons"
-    title="Buttons"
+    id={name}
+    title={name}
     subtitle="Real <Button> and <IconButton> components from @konfidence/design-system."
     status="implemented"
 >
     <div class="stack flex flex-col gap-5">
+        {#if name === "Button"}
         <Sample title="Variants" description="Primary should appear at most once per screen.">
             <Button variant="primary">Primary</Button>
             <Button variant="secondary">Secondary</Button>
@@ -42,6 +45,8 @@
             <Button variant="secondary" icon="edit" disabled>Edit</Button>
         </Sample>
 
+        {/if}
+        {#if name === "IconButton"}
         <Sample
             title="Icon buttons"
             description="`<IconButton>` requires an aria-label; supports a numeric badge overlay."
@@ -52,5 +57,6 @@
             <IconButton icon="bell" ariaLabel="Notifications" badge={3} />
             <IconButton icon="bell" ariaLabel="Notifications" badge={128} />
         </Sample>
+        {/if}
     </div>
 </Section>

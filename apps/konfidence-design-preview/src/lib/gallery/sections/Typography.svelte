@@ -2,11 +2,13 @@
     import Sample from "../Sample.svelte";
     import Section from "../Section.svelte";
     import { RADIUS_STEPS, SPACING_STEPS, TYPE_SCALE } from "#lib/tokens/read-tokens.ts";
+
+    let { name = "Typography" }: { name?: string } = $props();
 </script>
 
 <Section
     id="foundation-typography"
-    title="Foundation · Typography, spacing & radii"
+    title={name}
     subtitle="System font stack, tabular numerals, negative tracking on display sizes."
     status="implemented"
 >

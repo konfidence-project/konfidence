@@ -5,16 +5,16 @@
         IconButton,
         PageHeader,
     } from "@konfidence/design-system/components";
-    import NotYetImplemented from "../NotYetImplemented.svelte";
     import Sample from "../Sample.svelte";
     import Section from "../Section.svelte";
+
+    let { name = "PageHeader" }: { name?: string } = $props();
 </script>
 
 <Section
     id="hero"
-    title="Page header"
-    subtitle="Real <PageHeader> from @konfidence/design-system — title, optional description, optional eyebrow (breadcrumbs, back link), optional right-aligned actions. Higher-density object headers with KPIs still pending."
-    status="partial"
+    title={name}
+    subtitle="Title, description, eyebrow and right-aligned actions."
 >
     <div class="stack flex flex-col gap-5">
         <Sample title="Title only">
@@ -85,9 +85,5 @@
             </PageHeader>
         </Sample>
 
-        <NotYetImplemented
-            note="A high-density `<ObjectHeader>` variant (KPI cluster, status ribbon, secondary metadata rows) is still pending."
-            planned={["<ObjectHeader> (KPIs + tags + status ribbon)"]}
-        />
     </div>
 </Section>

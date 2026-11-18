@@ -1,15 +1,15 @@
 <script lang="ts">
     import { Breadcrumbs } from "@konfidence/design-system/components";
-    import NotYetImplemented from "../NotYetImplemented.svelte";
     import Sample from "../Sample.svelte";
     import Section from "../Section.svelte";
+
+    let { name = "Breadcrumbs" }: { name?: string } = $props();
 </script>
 
 <Section
     id="navigation"
-    title="Navigation primitives"
-    subtitle="Real <Breadcrumbs> from @konfidence/design-system, plus placeholders for the remaining in-page navigation primitives (tabs, segmented, filterbar)."
-    status="partial"
+    title={name}
+    subtitle="Navigation trails with a noninteractive current-page marker."
 >
     <div class="stack flex flex-col gap-5">
         <Sample
@@ -39,13 +39,5 @@
             <Breadcrumbs items={[{ label: "Projects" }]} />
         </Sample>
 
-        <NotYetImplemented
-            note="In-page navigation primitives beyond breadcrumbs are still pending. Shell navigation (topbar, sidebar, NavGroup, NavItem) is already shipped and demonstrated in the App shell section below."
-            planned={[
-                "<Tabs> (with overflow menu)",
-                "<Segmented> / <MultiButton>",
-                "<Filterbar>",
-            ]}
-        />
     </div>
 </Section>
