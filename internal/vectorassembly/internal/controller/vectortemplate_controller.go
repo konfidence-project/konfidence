@@ -14,6 +14,7 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	vectorocm "github.com/konfidence-project/konfidence/internal/vectorassembly/internal/ocm"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
+	"github.com/konfidence-project/konfidence/pkg/collection"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"github.com/konfidence-project/konfidence/pkg/jsonschema"
 	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
@@ -280,7 +281,13 @@ func (r *VectorTemplateReconciler) runAssembly(
 	}
 
 	// Combine base + component artifacts and check for drift.
-	desiredArtifacts := combineBaseArtifactsAndComponentArtifacts(baseArtifacts, componentArtifacts)
+	desiredArtifacts, err := combineBaseArtifactsAndComponentArtifacts(baseArtifacts, componentArtifacts)
+	if err != nil {
+		return assemblyResult{
+			componentName: uploadTarget.Component,
+			err:           fmt.Errorf("unable to assemble desired vector artifacts: %w %w", err, errDriftDetectionFailed),
+		}
+	}
 	desiredVector := vector.Vector{
 		Name:         uploadTarget.Component,
 		Artifacts:    desiredArtifacts,
@@ -439,28 +446,56 @@ func (r *VectorTemplateReconciler) getVectorCached(ctx context.Context, adapter 
 	return v.Clone(), nil
 }
 
-func combineBaseArtifactsAndComponentArtifacts(baseArtifacts, componentArtifacts []vector.Artifact) []vector.Artifact {
-	if len(baseArtifacts) == 0 {
-		return componentArtifacts
+func combineBaseArtifactsAndComponentArtifacts(baseArtifacts, componentArtifacts []vector.Artifact) ([]vector.Artifact, error) {
+	baseDuplicates := collection.FindDuplicatesBy(baseArtifacts,
+		func(artifact vector.Artifact) string {
+			return artifact.Name
+		},
+	)
+	if len(baseDuplicates) > 0 {
+		duplicate := baseDuplicates[0]
+		return nil, fmt.Errorf("base VectorTemplate contains artifact %q more than once with versions %q and %q; "+
+			"update the base VectorTemplate to only use a single artifact version",
+			duplicate.Duplicate.Name,
+			duplicate.First.Version,
+			duplicate.Duplicate.Version,
+		)
+	}
+
+	componentDuplicates := collection.FindDuplicatesBy(componentArtifacts,
+		func(artifact vector.Artifact) string {
+			return artifact.Name
+		},
+	)
+	if len(componentDuplicates) > 0 {
+		duplicate := componentDuplicates[0]
+		return nil, fmt.Errorf("vectorTemplate contains artifact %q more than once with versions %q and %q; "+
+			"update the VectorTemplate to only use a single artifact version",
+			duplicate.Duplicate.Name,
+			duplicate.First.Version,
+			duplicate.Duplicate.Version,
+		)
 	}
 
 	result := make([]vector.Artifact, len(baseArtifacts))
 	copy(result, baseArtifacts)
 
-	for _, componentArtifact := range componentArtifacts {
-		found := false
-		for i, baseArtifact := range result {
-			if componentArtifact.Name == baseArtifact.Name {
-				result[i] = componentArtifact
-				found = true
-				break
-			}
-		}
-		if !found {
-			result = append(result, componentArtifact)
-		}
+	artifactIndexes := make(map[string]int, len(baseArtifacts)+len(componentArtifacts))
+	for index, artifact := range baseArtifacts {
+		artifactIndexes[artifact.Name] = index
 	}
-	return result
+
+	for _, artifact := range componentArtifacts {
+		if index, inherited := artifactIndexes[artifact.Name]; inherited {
+			result[index] = artifact
+			continue
+		}
+
+		artifactIndexes[artifact.Name] = len(result)
+		result = append(result, artifact)
+	}
+
+	return result, nil
 }
 
 func mapComponentsToOCMReferences(components []konfidence.Component) ([]compref.Ref, error) {
