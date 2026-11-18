@@ -5,6 +5,14 @@ import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
+  optimizeDeps: {
+    // The design-system chevrons are imported through workspace source. Prebundle
+    // them before browser tests so discovery cannot reload an active test iframe.
+    include: [
+      "@ui5/webcomponents-icons/dist/slim-arrow-down.js",
+      "@ui5/webcomponents-icons/dist/slim-arrow-right.js",
+    ],
+  },
   plugins: [
     {
       configurePreviewServer: (server) => {
