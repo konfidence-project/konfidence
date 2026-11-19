@@ -21,16 +21,17 @@ const (
 	StageVersionStateActivating StageVersionState = "ActivatingVector"
 	// StageVersionStateReady means the stage version is fully rolled out.
 	StageVersionStateReady StageVersionState = "Ready"
-	// StageVersionStateFailed is reserved for failure detection and is not emitted yet,
-	// because no failure conditions are set on StageVersions today.
+	// StageVersionStateFailed means an explicit terminal failure was reported.
 	StageVersionStateFailed StageVersionState = "Failed"
 )
 
 // StateFromConditions derives the rollout state of a StageVersion from its status conditions.
 // The conditions are set in a linear chain by the stage version controller, so the most advanced
-// condition that is true wins.
+// condition that is true wins, unless an explicit failure is reported.
 func StateFromConditions(conditions []metav1.Condition) StageVersionState {
 	switch {
+	case meta.IsStatusConditionTrue(conditions, konfidence.StageVersionFailedCondition):
+		return StageVersionStateFailed
 	case meta.IsStatusConditionTrue(conditions, konfidence.StageVersionReady):
 		return StageVersionStateReady
 	case meta.IsStatusConditionTrue(conditions, konfidence.VectorActivationCreatedCondition):
