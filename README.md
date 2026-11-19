@@ -120,7 +120,7 @@ always describes the version of the API binary serving it. Swagger UI
 assets are also embedded in the API binary and do not require an external
 CDN.
 
-Open the explorer from the **API Explorer** button in the authenticated
+Open the explorer from the **API Explorer** link in the authenticated
 dashboard. The explorer, embedded specification, and Swagger UI assets require
 a valid `kden-session`; unauthenticated requests receive `401 Unauthorized`.
 Requests made through Swagger UI target the relative `/api` server and include

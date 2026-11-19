@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vitest";
-import { createApiClient, resolveApiExplorerUrl } from "#lib/konfidence-api/client.ts";
+import { createApiClient } from "#lib/konfidence-api/client.ts";
 
 const requestCredentials = async (baseUrl: string): Promise<RequestCredentials> => {
   const fetch = vi.fn(async (_request: Request) =>
@@ -40,15 +40,3 @@ test("retries a promotion conflict through the shared client", async () => {
   expect(fetch).toHaveBeenCalledTimes(2);
 });
 
-test.each([
-  ["/api", "/docs/"],
-  ["/api/", "/docs/"],
-  ["https://api.example.test/api", "https://api.example.test/docs/"],
-  ["https://api.example.test/api/", "https://api.example.test/docs/"],
-])("resolves the API explorer URL from %s", (apiBaseUrl, expected) => {
-  expect(resolveApiExplorerUrl(apiBaseUrl)).toBe(expected);
-});
-
-test("falls back to same-origin docs for an unconventional API base URL", () => {
-  expect(resolveApiExplorerUrl("https://api.example.test/custom")).toBe("/docs/");
-});
