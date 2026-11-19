@@ -35,7 +35,8 @@ var _ = Describe("FindReady", func() {
 		objects := []runtime.Object{readyTarget("one"), readyTarget("two")}
 		c := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objects...).Build()
 		_, err := FindReady(context.Background(), c, "landscape", "helm.example.com")
-		Expect(err).To(MatchError(ContainSubstring("multiple DeploymentTargets")))
+		Expect(err).To(MatchError(ErrMultipleReadyTargets))
+		Expect(err).To(MatchError(ContainSubstring(`in namespace "landscape" for artifact type "helm.example.com"`)))
 	})
 })
 

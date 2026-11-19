@@ -798,8 +798,8 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
 			Type:               konfidence.StalledCondition,
 			Status:             metav1.ConditionTrue,
-			Reason:             konfidence.ArtifactDeploymentStalledReasonDeploymentTargetSecretsMissing,
-			Message:            "kubeconfig Secret missing",
+			Reason:             konfidence.ArtifactDeploymentStalledReasonNoReadyDeploymentTarget,
+			Message:            "no Ready DeploymentTarget",
 			ObservedGeneration: artifactDeployment.Generation,
 		})
 		gomega.Expect(k8sClient.Status().Update(ctx, artifactDeployment)).To(gomega.Succeed())
@@ -810,7 +810,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			stalledCondition := meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition)
 			g.Expect(stalledCondition).ToNot(gomega.BeNil())
 			g.Expect(stalledCondition.Status).To(gomega.Equal(metav1.ConditionTrue))
-			g.Expect(stalledCondition.Message).To(gomega.ContainSubstring(konfidence.ArtifactDeploymentStalledReasonDeploymentTargetSecretsMissing))
+			g.Expect(stalledCondition.Message).To(gomega.ContainSubstring(konfidence.ArtifactDeploymentStalledReasonNoReadyDeploymentTarget))
 		}, timeout, interval).Should(gomega.Succeed())
 	})
 
