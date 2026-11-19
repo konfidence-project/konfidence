@@ -42,22 +42,22 @@ An artifact type consists of a descriptive type and a vendor-owned domain:
 
 For example, `helm.konfidence.cloud` identifies a Helm artifact contract maintained by `konfidence.cloud`.
 
-The `<domain>` MUST be a lowercase DNS name controlled by the deployer provider.
-Each domain label MUST satisfy the DNS length limit of 63 octets.
+The `<domain>` MUST [0001] be a lowercase DNS name controlled by the deployer provider.
+Each domain label MUST [0002] satisfy the DNS length limit of 63 octets.
 
-The `<type>` is a separate identifier and MUST NOT exceed 63 characters under this grammar.
-The `<type>` SHOULD describe the artifact's packaging format or deployment mechanism, such as `helm` or `kustomize`.
+The `<type>` is a separate identifier and MUST NOT [0003] exceed 63 characters under this grammar.
+The `<type>` SHOULD [0004] describe the artifact's packaging format or deployment mechanism, such as `helm` or `kustomize`.
 
-A provider MUST use a distinct artifact type whenever the payload contract changes in a way that a deployer supporting the original artifact type cannot safely interpret.
+A provider MUST [0005] use a distinct artifact type whenever the payload contract changes in a way that a deployer supporting the original artifact type cannot safely interpret.
 This also includes changes where the deployer can read the payload but cannot correctly interpret the described deployment, such as adding a field with semantics it does not support.
 
 ### 1.2 Artifact packaging
 
 An artifact is an OCM component version following the [OCM spec](https://github.com/open-component-model/ocm-spec).
 The OCM component version identifies the packaged artifact; it is separate from the artifact type.
-Its resources MUST contain exactly one resource with the OCM resource type `cloud.konfidence.artifact.manifest`, and that resource MUST be named `konfidence-manifest`.
+Its resources MUST [0006] contain exactly one resource with the OCM resource type `cloud.konfidence.artifact.manifest`, and that resource MUST [0007] be named `konfidence-manifest`.
 The content of this resource is the *artifact manifest*.
-The artifact manifest MUST be a JSON or YAML object with a `type` property whose value is the complete artifact type as defined in section 1.1.
+The artifact manifest MUST [0008] be a JSON or YAML object with a `type` property whose value is the complete artifact type as defined in section 1.1.
 
 In an OCM component constructor, the artifact manifest can be written inline with the [`UTF8/v1`](https://ocm.software/docs/reference/input-and-access-types/#utf8v1) input:
 
@@ -76,21 +76,21 @@ resources:
 The OCM input type only tells the OCM tooling how to read the content when the component version is built. It is not part of this contract.
 A `file/v1` input that reads the artifact manifest from a JSON file, such as `./manifest.json` containing `{"type": "kustomize.konfidence.cloud"}`, is equally valid.
 
-The component version MAY contain additional resources that a deployer uses to understand what needs to be deployed.
+The component version MAY [0009] contain additional resources that a deployer uses to understand what needs to be deployed.
 
-The provider of an artifact type SHOULD document its packaging and validation requirements.
-These requirements MUST identify required and optional OCM resources, their names or types, cardinality, accepted access methods, and expected payload formats.
-The provider MUST also document semantic constraints that cannot be checked from the component descriptor alone.
+The provider of an artifact type SHOULD [0010] document its packaging and validation requirements.
+These requirements MUST [0011] identify required and optional OCM resources, their names or types, cardinality, accepted access methods, and expected payload formats.
+The provider MUST [0012] also document semantic constraints that cannot be checked from the component descriptor alone.
 
-A deployer MUST validate the resources and payloads it relies on before deploying an artifact.
-It MUST report invalid artifacts through `ArtifactDeployment.status`, as specified in section 3.
+A deployer MUST [0013] validate the resources and payloads it relies on before deploying an artifact.
+It MUST [0014] report invalid artifacts through `ArtifactDeployment.status`, as specified in section 3.
 
-A provider MAY publish a machine-readable schema for structural validation on the resolved OCM component descriptor.
+A provider MAY [0015] publish a machine-readable schema for structural validation on the resolved OCM component descriptor.
 The schema format, how schemas are published and selected by artifact type, and which checks can be performed before payloads are fetched remain to be defined.
 Future versions of this specification may introduce requirements about how deployers provide that information to enable seamless integration into Konfidence tooling. 
 
-A provider MAY offer custom tools to create or validate artifacts for their supported types.
-Conformance MUST NOT depend on artifacts having been created with provider-specific tooling.
+A provider MAY [0016] offer custom tools to create or validate artifacts for their supported types.
+Conformance MUST NOT [0017] depend on artifacts having been created with provider-specific tooling.
 
 ## 2. DeploymentTarget
 
@@ -119,45 +119,45 @@ status:
 
 ### 2.1 Ownership and selection
 
-A deployer MUST reconcile only targets whose `spec.artifactType` matches an `<artifact-type>` it supports.
-It MUST NOT update the status of targets belonging to other providers or types.
+A deployer MUST [0018] reconcile only targets whose `spec.artifactType` matches an `<artifact-type>` it supports.
+It MUST NOT [0019] update the status of targets belonging to other providers or types.
 Within a landscape namespace, at most one target for a given `<artifact-type>` is allowed.
 If no target exists, an artifact of that type cannot be deployed into the landscape.
 
 ### 2.2 Parameters and validation
 
 The deployer defines the interpretation and validation of `spec.parameters`.
-Parameters MAY point to any resource a deployer needs to establish a connection to the target runtime for a deployment, including Secrets, ConfigMaps, or deployer-owned custom resources.
-It MAY use installation-wide defaults, which apply to every landscape served by that deployer.
-It MUST validate parameters before use, and it MUST NOT try to deploy to targets that have validation errors.
+Parameters MAY [0020] point to any resource a deployer needs to establish a connection to the target runtime for a deployment, including Secrets, ConfigMaps, or deployer-owned custom resources.
+It MAY [0021] use installation-wide defaults, which apply to every landscape served by that deployer.
+It MUST [0022] validate parameters before use, and it MUST NOT [0023] try to deploy to targets that have validation errors.
 
-It SHOULD document the parameters it accepts and their defaults, and which changes can be applied to an existing target.
+It SHOULD [0024] document the parameters it accepts and their defaults, and which changes can be applied to an existing target.
 Since the exact configuration for establishing a connection is left to the deployer, Konfidence cannot distinguish safe operations (like credential rotations) from harmful operations (like moving to a different cluster).
-The deployer SHOULD implement best-effort validation to prevent the user from changing parameters that may cause a service downtime for the deployed applications. 
+The deployer SHOULD [0025] implement best-effort validation to prevent the user from changing parameters that may cause a service downtime for the deployed applications. 
 
 Some changes require reconciliation even when the `DeploymentTarget.spec` does not change.
-The deployer MUST re-evaluate a target when a referenced resource that it relies on changes.
+The deployer MUST [0026] re-evaluate a target when a referenced resource that it relies on changes.
 
 ### 2.3 Status
 
-The deployer MUST set the target's `Ready` condition after validating the parameters it needs to accept the target.
+The deployer MUST [0027] set the target's `Ready` condition after validating the parameters it needs to accept the target.
 `Ready=True` means the deployer accepts the target for deployment.
 This does not guarantee that a future artifact deployment will succeed.
 
-The deployer MAY perform additional connectivity or credential checks and report their results in separate deployer-owned conditions.
-It MUST set `Ready=False` with a descriptive reason and message when required parameters are invalid.
+The deployer MAY [0028] perform additional connectivity or credential checks and report their results in separate deployer-owned conditions.
+It MUST [0029] set `Ready=False` with a descriptive reason and message when required parameters are invalid.
 
-Core MUST check that the target is ready and its artifact type matches the artifact before treating the target as suitable for deployment.
-The deployer SHOULD publish its name and release version in `status.controller`.
+Core MUST [0030] check that the target is ready and its artifact type matches the artifact before treating the target as suitable for deployment.
+The deployer SHOULD [0031] publish its name and release version in `status.controller`.
 
 The exact shape of `status.capabilities` remains open for now.
 
 ### 2.4 Deletion
 
-Deleting a `DeploymentTarget` MUST NOT by itself undeploy artifacts or remove resources at its destination.
+Deleting a `DeploymentTarget` MUST NOT [0032] by itself undeploy artifacts or remove resources at its destination.
 Runtime resources remain deployed, but the deployer may lose access to them and can no longer guarantee their continued reconciliation.
-If another target for the same artifact type is created, the deployer MUST NOT assume that it refers to the same destination or silently adopt the existing runtime resources.
-How core reports the state of affected `ArtifactDeployment` resources after target deletion remains to be specified; their previous readiness MUST NOT be taken as evidence that they are still being reconciled.
+If another target for the same artifact type is created, the deployer MUST NOT [0033] assume that it refers to the same destination or silently adopt the existing runtime resources.
+How core reports the state of affected `ArtifactDeployment` resources after target deletion remains to be specified; their previous readiness MUST NOT [0034] be taken as evidence that they are still being reconciled.
 
 ## 3. ArtifactDeployment
 
@@ -191,84 +191,84 @@ A deployer acts platform-wide and declares the artifact types it supports in its
 It is the cluster administrator's responsibility to ensure that at most one deployer reconciles a given artifact type in a control plane.
 A vendor-owned identifier prevents accidental naming conflicts, but it cannot prevent two controllers from being configured for the same type.
 
-The deployer MUST reconcile an `ArtifactDeployment` only when its artifact type matches a supported identifier exactly.
-It MUST do so regardless of whether they were created before the deployer was installed or while it was stopped.
-It MUST NOT reconcile resources whose `spec.artifactType` is not known to the deployer.
+The deployer MUST [0035] reconcile an `ArtifactDeployment` only when its artifact type matches a supported identifier exactly.
+It MUST [0036] do so regardless of whether they were created before the deployer was installed or while it was stopped.
+It MUST NOT [0037] reconcile resources whose `spec.artifactType` is not known to the deployer.
 
 ### 3.2 Input validation
 
-The deployer MUST validate the `ArtifactDeployment.spec.component` specification against the packaging contract for its artifact type.
+The deployer MUST [0038] validate the `ArtifactDeployment.spec.component` specification against the packaging contract for its artifact type.
 This includes the required OCM resources and the payloads it consumes.
-It MUST NOT solely rely on validation performed by an artifact authoring tool or by core.
+It MUST NOT [0039] solely rely on validation performed by an artifact authoring tool or by core.
 
-Validation MAY fetch external resources or payloads that are referenced in the specification.
+Validation MAY [0040] fetch external resources or payloads that are referenced in the specification.
 Validation is a best-effort determination to make sure that the inputs satisfy the packaging contract.
 Successful validation does not guarantee that deployment of the artifact will succeed.
 
 ### 3.3 Reconciliation
 
-The deployer MUST reconcile supported artifacts idempotently, including those created before it was installed or while it was stopped.
-For each `ArtifactDeployment`, the deployer MUST: 
+The deployer MUST [0041] reconcile supported artifacts idempotently, including those created before it was installed or while it was stopped.
+For each `ArtifactDeployment`, the deployer MUST [0042]: 
 
 1. Validate its component resources and payloads as described in section 3.2. 
 2. Find the `DeploymentTarget` for the artifact type in the deployment's landscape namespace as described in section 2. 
-The target MUST have a `Ready=True` condition and its `spec.artifactType` MUST match exactly. 
-If no such target exists, the deployer MUST write a `Stalled=True` condition with reason `NoReadyDeploymentTarget`. 
+The target MUST [0043] have a `Ready=True` condition and its `spec.artifactType` MUST [0044] match exactly. 
+If no such target exists, the deployer MUST [0045] write a `Stalled=True` condition with reason `NoReadyDeploymentTarget`. 
 3. Use the target's parameters to connect to the target runtime.
-The deployer MAY cache the credentials or reuse connections across different reconciliations, including across targets that refer to the same runtime infrastructure.  
+The deployer MAY [0046] cache the credentials or reuse connections across different reconciliations, including across targets that refer to the same runtime infrastructure.  
 4. Apply the resources described by `ArtifactDeployment.spec.component` to the target runtime. 
-The deployer MAY create intermediate resources (including custom resources on the control plane) to track or identify the runtime resources managed by the `ArtifactDeployment`.
-If runtime resources corresponding to an `ArtifactDeployment` already exist, the deployer MAY adopt and manage them instead of creating duplicate resources.
-Before adoption, it MUST establish that the resources correspond to that exact `ArtifactDeployment` and are safe for it to manage.
+The deployer MAY [0047] create intermediate resources (including custom resources on the control plane) to track or identify the runtime resources managed by the `ArtifactDeployment`.
+If runtime resources corresponding to an `ArtifactDeployment` already exist, the deployer MAY [0048] adopt and manage them instead of creating duplicate resources.
+Before adoption, it MUST [0049] establish that the resources correspond to that exact `ArtifactDeployment` and are safe for it to manage.
 
 [//]: # (TODO: 5. write DeploymentResult to ArtifactDeployment.status)
 
-The deployer MAY record events on an `ArtifactDeployment` to help users understand the deployment process. 
+The deployer MAY [0050] record events on an `ArtifactDeployment` to help users understand the deployment process. 
 Events are informational and do not replace the status conditions used to report deployment state.
 
 ### 3.4 Status
 
-The deployer MUST report reconciliation progress using the `Reconciling`, `Stalled`, and `Ready` conditions. 
+The deployer MUST [0051] report reconciliation progress using the `Reconciling`, `Stalled`, and `Ready` conditions. 
 These conditions are mutually exclusive.
 
-The deployer MUST maintain the following conditions:
+The deployer MUST [0052] maintain the following conditions:
 
-* It MUST ensure that no more than one of `Reconciling`, `Stalled`, and `Ready` is `True` simultaneously.
-* `Ready` MUST be present after the initial status update and MUST have a status of `True` or `False`.
-* `Reconciling` MUST be present with `status=True` while the deployment has not reached the desired state and the deployer expects automatic reconciliation to make further progress. 
-It SHOULD be removed once that is no longer the case (abnormal-true condition).
-* `Stalled` MUST be present with `status=True` when reconciliation is stalled and SHOULD be removed when reconciliation is no longer stalled (abnormal-true condition).
+* It MUST [0053] ensure that no more than one of `Reconciling`, `Stalled`, and `Ready` is `True` simultaneously.
+* `Ready` MUST [0054] be present after the initial status update and MUST [0055] have a status of `True` or `False`.
+* `Reconciling` MUST [0056] be present with `status=True` while the deployment has not reached the desired state and the deployer expects automatic reconciliation to make further progress. 
+It SHOULD [0057] be removed once that is no longer the case (abnormal-true condition).
+* `Stalled` MUST [0058] be present with `status=True` when reconciliation is stalled and SHOULD [0059] be removed when reconciliation is no longer stalled (abnormal-true condition).
 
-The deployer MAY report additional deployment-related information in separate deployer-owned conditions.
-These conditions MUST NOT change the meaning of `Reconciling`, `Stalled`, or `Ready`.
+The deployer MAY [0060] report additional deployment-related information in separate deployer-owned conditions.
+These conditions MUST NOT [0061] change the meaning of `Reconciling`, `Stalled`, or `Ready`.
 
-The deployer SHOULD NOT report `Reconciling=False` or `Stalled=False`. 
-Their absence MUST be interpreted as `False`.
+The deployer SHOULD NOT [0062] report `Reconciling=False` or `Stalled=False`. 
+Their absence MUST [0063] be interpreted as `False`.
 
 #### Condition semantics
 
 **`Reconciling=True`**
 
 Deployment of the artifact is in progress.
-It MUST be set while the deployer is actively applying changes or waiting for the target runtime to converge to the desired state.
+It MUST [0064] be set while the deployer is actively applying changes or waiting for the target runtime to converge to the desired state.
 This condition is independent of whether a controller is currently executing its `Reconcile` method.
-It MAY remain `True` across multiple reconcile calls, including while the deployer is waiting for a runtime resource to become ready.
-It MUST NOT be set when further automatic reconciliation cannot make progress.
-Its `reason` and `message` MAY be used to describe the current activity of the deployer.  
+It MAY [0065] remain `True` across multiple reconcile calls, including while the deployer is waiting for a runtime resource to become ready.
+It MUST NOT [0066] be set when further automatic reconciliation cannot make progress.
+Its `reason` and `message` MAY [0067] be used to describe the current activity of the deployer.  
 
 **`Stalled=True`** 
 
 Reconciliation cannot make further progress. 
 The deployer has exhausted its attempts, and reaching the desired state requires an external change or intervention.
-It MUST be set when the deployer determines that it cannot reach the desired state through further automatic reconciliation.
-It MUST NOT be used for transient failures that the deployer continues to retry automatically.
-Its `reason` SHOULD be used to identify the cause of the failure and provide an actionable `message` explaining the problems.
+It MUST [0068] be set when the deployer determines that it cannot reach the desired state through further automatic reconciliation.
+It MUST NOT [0069] be used for transient failures that the deployer continues to retry automatically.
+Its `reason` SHOULD [0070] be used to identify the cause of the failure and provide an actionable `message` explaining the problems.
 
 **`Ready=True`** 
 
 The desired state has been reached in the target runtime.
-It MUST be set when the deployer has successfully reconciled the resource and verified that the target runtime satisfies the desired state.
-It MUST NOT be set merely because deployment operations have been submitted successfully.
+It MUST [0071] be set when the deployer has successfully reconciled the resource and verified that the target runtime satisfies the desired state.
+It MUST NOT [0072] be set merely because deployment operations have been submitted successfully.
 
 #### Examples
 
@@ -284,12 +284,12 @@ It MUST NOT be set merely because deployment operations have been submitted succ
 
 ### 3.5 Deletion and undeployment
 
-When an `ArtifactDeployment` is deleted, the deployer MUST remove the runtime resources it manages on its behalf, including resources on a remote runtime.
-The deployer MUST NOT consider deletion complete while any such resources are known or reasonably believed to remain deployed.
-The deployer SHOULD use a Kubernetes finalizer or an equivalent mechanism to keep the `ArtifactDeployment` available until cleanup succeeds.
+When an `ArtifactDeployment` is deleted, the deployer MUST [0073] remove the runtime resources it manages on its behalf, including resources on a remote runtime.
+The deployer MUST NOT [0074] consider deletion complete while any such resources are known or reasonably believed to remain deployed.
+The deployer SHOULD [0075] use a Kubernetes finalizer or an equivalent mechanism to keep the `ArtifactDeployment` available until cleanup succeeds.
 
-If cleanup fails, including because credentials are unavailable or access to the target runtime is lost, the deployer MUST continue with its cleanup procedure until it succeeds.
-While cleanup is blocked, the deployer SHOULD report cleanup progress with the `Reconciling=True` condition and an appropriate `reason` and `message`.
+If cleanup fails, including because credentials are unavailable or access to the target runtime is lost, the deployer MUST [0076] continue with its cleanup procedure until it succeeds.
+While cleanup is blocked, the deployer SHOULD [0077] report cleanup progress with the `Reconciling=True` condition and an appropriate `reason` and `message`.
 
 Deleting the `DeploymentTarget` before deleting associated `ArtifactDeployments` can leave those deployments pending deletion until access to the original destination is restored.
 
