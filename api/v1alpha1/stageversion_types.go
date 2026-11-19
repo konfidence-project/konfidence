@@ -42,6 +42,11 @@ type StageVersionSpec struct {
 // StageVersionStatus defines the observed state of StageVersion.
 type StageVersionStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// VectorDeploymentRef references the VectorDeployment created for this
+	// StageVersion. It is absent until creation succeeds.
+	// +optional
+	VectorDeploymentRef *LocalObjectReference `json:"vectorDeploymentRef,omitempty"`
 }
 
 // StageVersion is the Schema for the stageversions API

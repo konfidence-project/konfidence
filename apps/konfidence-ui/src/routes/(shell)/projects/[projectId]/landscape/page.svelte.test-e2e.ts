@@ -14,6 +14,7 @@ const stage = {
     stageGeneration: 1,
     status: "Ready",
     vector: "registry.example:5000//delivery/vector:old",
+    vectorDeploymentId: "dev-api-old",
   },
   id: "dev-api",
   landscapeId: "primary",
@@ -23,6 +24,7 @@ const stage = {
     stageGeneration: 2,
     status: "DeployingVector",
     vector: "registry.example:5000//delivery/vector:main",
+    vectorDeploymentId: "dev-api-target",
   },
 };
 

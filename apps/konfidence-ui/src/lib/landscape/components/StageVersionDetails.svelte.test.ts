@@ -10,6 +10,7 @@ const version: StageVersion = {
   stageGeneration: 3,
   status: "Ready",
   vector: "registry.example.com/delivery/vector:3.0.0",
+  vectorDeploymentId: "dev-api-v3",
 };
 
 const statuses = [

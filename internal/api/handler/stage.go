@@ -99,10 +99,18 @@ func toStageVersionResponse(v *konfidence.StageVersion) *openapi.StageVersion {
 	if v == nil {
 		return nil
 	}
+
+	var vectorDeploymentId *openapi.VectorDeploymentId
+	if v.Status.VectorDeploymentRef != nil {
+		id := v.Status.VectorDeploymentRef.Name
+		vectorDeploymentId = &id
+	}
+
 	return &openapi.StageVersion{
-		Id:              v.Name,
-		Vector:          v.Spec.Vector,
-		StageGeneration: int(v.Spec.StageGeneration),
-		Status:          openapi.StageVersionStatus(stagedomain.StateFromConditions(v.Status.Conditions)),
+		Id:                 v.Name,
+		VectorDeploymentId: vectorDeploymentId,
+		Vector:             v.Spec.Vector,
+		StageGeneration:    int(v.Spec.StageGeneration),
+		Status:             openapi.StageVersionStatus(stagedomain.StateFromConditions(v.Status.Conditions)),
 	}
 }

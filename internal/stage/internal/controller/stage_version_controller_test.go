@@ -68,6 +68,7 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 				g.Expect(stageVersion.Name).To(Equal(StageVersionDev))
 				g.Expect(stageVersion.Status.Conditions).To(HaveLen(1))
 				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, konfidence.VectorDeploymentCreatedCondition)).To(BeTrue())
+				g.Expect(stageVersion.Status.VectorDeploymentRef).To(Equal(&konfidence.LocalObjectReference{Name: StageVersionDev}))
 			}, timeout, interval).Should(Succeed())
 
 			// check that the vectorDeployment has been created and has valid properties

@@ -105,12 +105,17 @@ const stageVersion = (
   stageGeneration: number,
   status: StageVersion["status"],
   version: string,
-): StageVersion => ({
-  id: `${stageId}-v${stageGeneration}`,
-  stageGeneration,
-  status,
-  vector: `${VECTOR_REPOSITORY}//delivery-vector:${version}`,
-});
+): StageVersion => {
+  const id = `${stageId}-v${stageGeneration}`;
+
+  return {
+    id,
+    stageGeneration,
+    status,
+    vector: `${VECTOR_REPOSITORY}//delivery-vector:${version}`,
+    vectorDeploymentId: status === "PendingDeployment" ? null : id,
+  };
+};
 
 const stage = (
   id: string,
@@ -204,9 +209,12 @@ const versionFromVector = (vector: string): string => vector.split(":").at(-1) ?
 // Derives one deployment per stageVersion so getVectorDeploymentV1 resolves the stageVersion ids the UI requests (see StageDetails.svelte and useVectorDeployment).
 const stageVersionDeployments: VectorDeployment[] = stages.flatMap((entry) =>
   [entry.targetStageVersion, entry.activeStageVersion]
-    .filter((version): version is StageVersion => version !== undefined)
+    .filter(
+      (version): version is StageVersion & { vectorDeploymentId: string } =>
+        version !== undefined && version.vectorDeploymentId !== null,
+    )
     .map((version) => ({
-      id: version.id,
+      id: version.vectorDeploymentId,
       landscapeId: entry.landscapeId,
       stageId: entry.id,
       status: vectorDeploymentStatus(version.status),

@@ -86,6 +86,9 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 		return err
 	}
 
+	// store vectorDeployment ref
+	stageVersion.Status.VectorDeploymentRef = &konfidence.LocalObjectReference{Name: vectorDeployment.Name}
+
 	// set vectorDeploymentCreated status
 	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{
 		Type:               konfidence.VectorDeploymentCreatedCondition,
@@ -260,11 +263,9 @@ func (r *StageVersionReconciler) constructVectorDeployment(stageVersion *konfide
 		return nil, fmt.Errorf("stageVersion %q has no stage reference", stageVersion.Name)
 	}
 	vectorDeployment := &konfidence.VectorDeployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      stageVersion.Name,
-			Namespace: stageVersion.Namespace,
-			Labels:    getVectorDeploymentLabels(stageVersion),
-		},
+		Name:      stageVersion.Name,
+		Namespace: stageVersion.Namespace,
+		Labels:    getVectorDeploymentLabels(stageVersion),
 		Spec: konfidence.VectorDeploymentSpec{
 			Vector: stageVersion.Spec.Vector,
 		},
