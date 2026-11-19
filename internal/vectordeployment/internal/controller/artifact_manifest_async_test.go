@@ -49,16 +49,18 @@ func testManifest(ref compref.Ref) ArtifactManifest {
 	}
 }
 
-func newManifestTestReconciler(port VectorOcmPort, perDeployment, global int) *VectorDeploymentReconciler {
+func newManifestTestReconciler(port VectorOcmPort, perDeployment, global int) (*VectorDeploymentReconciler, VectorOcmPort) {
 	return &VectorDeploymentReconciler{
-		OcmAdapter: port,
-		jobs:       newJobRegistry(),
+		AdapterFactory: func(_ context.Context, _ *konfidence.VectorDeployment) (VectorOcmPort, error) {
+			return port, nil
+		},
+		jobs: newJobRegistry(),
 		MaxArtifactManifestDownloadsPerDeployment: perDeployment,
 		manifestPollInterval:                      defaultArtifactManifestPollInterval,
 		MaxGlobalArtifactManifestDownloads:        global,
 		manifestDownloadTimeout:                   time.Second,
 		manifestDownloadLimiter:                   newArtifactManifestDownloadLimiter(global),
-	}
+	}, port
 }
 
 func updatePeak(peak *atomic.Int32, current int32) {
@@ -105,14 +107,14 @@ var _ = Describe("Artifact manifest jobs", func() {
 			},
 		}
 
-		r := newManifestTestReconciler(port, 2, 2)
-		_, retryAfter := r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid-1"), input)
+		r, adapter := newManifestTestReconciler(port, 2, 2)
+		_, retryAfter := r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid-1"), input, adapter)
 		Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
 
 		Eventually(started).Should(Receive())
 		Eventually(started).Should(Receive())
 
-		_, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid-1"), []compref.Ref{refA, refB})
+		_, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid-1"), []compref.Ref{refA, refB}, adapter)
 		Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
 		Expect(calls.Load()).To(Equal(int32(2)))
 
@@ -124,7 +126,7 @@ var _ = Describe("Artifact manifest jobs", func() {
 
 		var result artifactManifestResult
 		Eventually(func() time.Duration {
-			result, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid-1"), []compref.Ref{refA, refB})
+			result, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid-1"), []compref.Ref{refA, refB}, adapter)
 			return retryAfter
 		}).Should(BeZero())
 
@@ -137,7 +139,7 @@ var _ = Describe("Artifact manifest jobs", func() {
 		Expect(result.artifacts[1].Manifest.Resources[0].Name).To(Equal(refB.String()))
 
 		By("reusing the successful result without another download")
-		cachedResult, retryAfter := r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid-1"), []compref.Ref{refB, refA})
+		cachedResult, retryAfter := r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid-1"), []compref.Ref{refB, refA}, adapter)
 		Expect(retryAfter).To(BeZero())
 		Expect(cachedResult.err).NotTo(HaveOccurred())
 		Expect(cachedResult.artifacts).To(HaveLen(2))
@@ -162,19 +164,19 @@ var _ = Describe("Artifact manifest jobs", func() {
 				},
 			}
 
-			r := newManifestTestReconciler(port, 1, 1)
+			r, adapter := newManifestTestReconciler(port, 1, 1)
 
-			_, retryAfter := r.resolveArtifactManifestsAsync(nn, oldGeneration, oldUID, oldRefs)
+			_, retryAfter := r.resolveArtifactManifestsAsync(nn, oldGeneration, oldUID, oldRefs, adapter)
 			Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
 			Eventually(firstStarted).Should(BeClosed())
 
-			_, retryAfter = r.resolveArtifactManifestsAsync(nn, newGeneration, newUID, newRefs)
+			_, retryAfter = r.resolveArtifactManifestsAsync(nn, newGeneration, newUID, newRefs, adapter)
 			Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
 			Eventually(firstCanceled).Should(BeClosed())
 
 			var result artifactManifestResult
 			Eventually(func() time.Duration {
-				result, retryAfter = r.resolveArtifactManifestsAsync(nn, newGeneration, newUID, newRefs)
+				result, retryAfter = r.resolveArtifactManifestsAsync(nn, newGeneration, newUID, newRefs, adapter)
 				return retryAfter
 			}).Should(BeZero())
 
@@ -221,12 +223,12 @@ var _ = Describe("Artifact manifest jobs", func() {
 			},
 		}
 
-		r := newManifestTestReconciler(port, 1, 1)
-		_, retryAfter := r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), []compref.Ref{testArtifactRef("example.com/a", "1.0.0")})
+		r, adapter := newManifestTestReconciler(port, 1, 1)
+		_, retryAfter := r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), []compref.Ref{testArtifactRef("example.com/a", "1.0.0")}, adapter)
 		Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
 		Eventually(started).Should(BeClosed())
 
-		result, retryAfter := r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), nil)
+		result, retryAfter := r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), nil, adapter)
 		Expect(retryAfter).To(BeZero())
 		Expect(result.err).NotTo(HaveOccurred())
 		Eventually(canceled).Should(BeClosed())
@@ -247,46 +249,46 @@ var _ = Describe("Artifact manifest jobs", func() {
 			},
 		}
 
-		r := newManifestTestReconciler(port, 1, 1)
+		r, adapter := newManifestTestReconciler(port, 1, 1)
 		now := time.Date(2026, time.November, 4, 12, 0, 0, 0, time.UTC)
 		r.jobs.now = func() time.Time {
 			return now
 		}
 
-		_, retryAfter := r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
+		_, retryAfter := r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references, adapter)
 		Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
 		Eventually(calls.Load).Should(Equal(int32(1)))
 		var result artifactManifestResult
 		Eventually(func() time.Duration {
-			result, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
+			result, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references, adapter)
 			return retryAfter
 		}).Should(BeZero())
 
 		Expect(result.err).To(MatchError(ContainSubstring("registry unavailable")))
 		Expect(retryAfter).To(BeZero())
 
-		_, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
+		_, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references, adapter)
 		Expect(retryAfter).To(Equal(defaultArtifactManifestRetryBaseDelay))
 		Expect(calls.Load()).To(Equal(int32(1)))
 
 		now = now.Add(defaultArtifactManifestRetryBaseDelay - time.Millisecond)
-		_, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
+		_, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references, adapter)
 		Expect(retryAfter).To(Equal(time.Millisecond))
 		Expect(calls.Load()).To(Equal(int32(1)))
 
 		now = now.Add(time.Millisecond)
-		_, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
+		_, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references, adapter)
 		Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
 		Eventually(calls.Load).Should(Equal(int32(2)))
 		Eventually(func() time.Duration {
-			result, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
+			result, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references, adapter)
 			return retryAfter
 		}).Should(BeZero())
 
 		Expect(result.err).To(HaveOccurred())
 		Expect(retryAfter).To(BeZero())
 
-		_, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
+		_, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references, adapter)
 		Expect(retryAfter).To(Equal(2 * defaultArtifactManifestRetryBaseDelay))
 		Expect(calls.Load()).To(Equal(int32(2)))
 	})
@@ -308,16 +310,16 @@ var _ = Describe("Artifact manifest jobs", func() {
 			},
 		}
 
-		r := newManifestTestReconciler(port, 1, 1)
+		r, adapter := newManifestTestReconciler(port, 1, 1)
 
 		_, retryAfter := r.resolveArtifactManifestsAsync(
-			nn, 1, types.UID("uid"), references,
+			nn, 1, types.UID("uid"), references, adapter,
 		)
 		Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
 
 		var result artifactManifestResult
 		Eventually(func() time.Duration {
-			result, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
+			result, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references, adapter)
 			return retryAfter
 		}).Should(BeZero())
 
@@ -327,13 +329,13 @@ var _ = Describe("Artifact manifest jobs", func() {
 		Expect(r.jobs.retryLimiter.NumRequeues(nn)).To(BeZero())
 
 		By("returning the cached permanent result without another download")
-		result, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
+		result, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references, adapter)
 		Expect(retryAfter).To(BeZero())
 		Expect(errors.As(result.err, &actual)).To(BeTrue())
 		Expect(calls.Load()).To(Equal(int32(1)))
 
 		By("invalidating the cached failure when identity changes")
-		_, retryAfter = r.resolveArtifactManifestsAsync(nn, 2, types.UID("uid"), references)
+		_, retryAfter = r.resolveArtifactManifestsAsync(nn, 2, types.UID("uid"), references, adapter)
 		Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
 		Eventually(calls.Load).Should(Equal(int32(2)))
 	})
@@ -350,20 +352,20 @@ var _ = Describe("Artifact manifest jobs", func() {
 			},
 		}
 
-		r := newManifestTestReconciler(port, 1, 1)
+		r, adapter := newManifestTestReconciler(port, 1, 1)
 
-		_, retryAfter := r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
+		_, retryAfter := r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references, adapter)
 		Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
 		var result artifactManifestResult
 		Eventually(func() time.Duration {
-			result, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
+			result, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references, adapter)
 			return retryAfter
 		}).Should(BeZero())
 
 		Expect(result.err).To(HaveOccurred())
 		Expect(retryAfter).To(BeZero())
 
-		_, retryAfter = r.resolveArtifactManifestsAsync(nn, 2, types.UID("uid"), references)
+		_, retryAfter = r.resolveArtifactManifestsAsync(nn, 2, types.UID("uid"), references, adapter)
 		Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
 		Eventually(calls.Load).Should(Equal(int32(2)))
 	})
@@ -397,11 +399,11 @@ var _ = Describe("Artifact manifest jobs", func() {
 			},
 		}
 
-		r := newManifestTestReconciler(port, 2, 8)
+		r, adapter := newManifestTestReconciler(port, 2, 8)
 		resultChannel := make(chan artifactManifestResult, 1)
 
 		go func() {
-			resultChannel <- r.downloadArtifactManifests(context.Background(), refs)
+			resultChannel <- r.downloadArtifactManifests(context.Background(), refs, adapter)
 		}()
 
 		Eventually(calls.Load).Should(Equal(int32(2)))
@@ -437,20 +439,20 @@ var _ = Describe("Artifact manifest jobs", func() {
 			},
 		}
 
-		r := newManifestTestReconciler(port, 4, 2)
+		r, adapter := newManifestTestReconciler(port, 4, 2)
 		results := make(chan artifactManifestResult, 2)
 
 		go func() {
 			results <- r.downloadArtifactManifests(context.Background(), []compref.Ref{
 				testArtifactRef("example.com/a", "1.0.0"),
 				testArtifactRef("example.com/b", "1.0.0"),
-			})
+			}, adapter)
 		}()
 		go func() {
 			results <- r.downloadArtifactManifests(context.Background(), []compref.Ref{
 				testArtifactRef("example.com/c", "1.0.0"),
 				testArtifactRef("example.com/d", "1.0.0"),
-			})
+			}, adapter)
 		}()
 
 		Eventually(calls.Load).Should(Equal(int32(2)))
@@ -478,7 +480,7 @@ var _ = Describe("Artifact manifest jobs", func() {
 			},
 		}
 
-		r := newManifestTestReconciler(port, 1, 1)
+		r, adapter := newManifestTestReconciler(port, 1, 1)
 		r.manifestDownloadTimeout = 50 * time.Millisecond
 
 		release, err := r.manifestDownloadLimiter.acquire(context.Background())
@@ -486,7 +488,7 @@ var _ = Describe("Artifact manifest jobs", func() {
 
 		resultChannel := make(chan artifactManifestResult, 1)
 		go func() {
-			resultChannel <- r.downloadArtifactManifests(context.Background(), []compref.Ref{ref})
+			resultChannel <- r.downloadArtifactManifests(context.Background(), []compref.Ref{ref}, adapter)
 		}()
 
 		Consistently(calls.Load, 100*time.Millisecond).Should(Equal(int32(0)))
@@ -513,8 +515,8 @@ var _ = Describe("Artifact manifest jobs", func() {
 			},
 		}
 
-		r := newManifestTestReconciler(port, 1, 1)
-		result := r.downloadArtifactManifests(context.Background(), []compref.Ref{ref})
+		r, adapter := newManifestTestReconciler(port, 1, 1)
+		result := r.downloadArtifactManifests(context.Background(), []compref.Ref{ref}, adapter)
 
 		var actual *PermanentError
 		Expect(errors.As(result.err, &actual)).To(BeTrue())
@@ -544,10 +546,11 @@ var _ = Describe("Artifact manifest jobs", func() {
 			},
 		}
 
-		r := newManifestTestReconciler(port, 2, 2)
+		r, adapter := newManifestTestReconciler(port, 2, 2)
 		result := r.downloadArtifactManifests(
 			context.Background(),
 			[]compref.Ref{canceledRef, permanentRef},
+			adapter,
 		)
 
 		var actual *PermanentError
@@ -569,15 +572,15 @@ var _ = Describe("Artifact manifest jobs", func() {
 			},
 		}
 
-		r := newManifestTestReconciler(port, 1, 1)
+		r, adapter := newManifestTestReconciler(port, 1, 1)
 
-		result := r.downloadArtifactManifests(context.Background(), []compref.Ref{ref})
+		result := r.downloadArtifactManifests(context.Background(), []compref.Ref{ref}, adapter)
 		Expect(result.err).To(HaveOccurred())
 		Expect(result.err.Error()).To(ContainSubstring("malformed registry content"))
 		Expect(result.err.Error()).To(ContainSubstring(ref.String()))
 
 		By("releasing the download slot after the panic")
-		result = r.downloadArtifactManifests(context.Background(), []compref.Ref{ref})
+		result = r.downloadArtifactManifests(context.Background(), []compref.Ref{ref}, adapter)
 		Expect(result.err).NotTo(HaveOccurred())
 		Expect(result.artifacts).To(HaveLen(1))
 	})
@@ -593,14 +596,14 @@ var _ = Describe("Artifact manifest jobs", func() {
 				},
 			}
 
-			r := newManifestTestReconciler(port, 1, 1)
+			r, adapter := newManifestTestReconciler(port, 1, 1)
 
-			_, retryAfter := r.resolveArtifactManifestsAsync(nn, oldGeneration, oldUID, oldRefs)
+			_, retryAfter := r.resolveArtifactManifestsAsync(nn, oldGeneration, oldUID, oldRefs, adapter)
 			Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
 
 			var result artifactManifestResult
 			Eventually(func() time.Duration {
-				result, retryAfter = r.resolveArtifactManifestsAsync(nn, oldGeneration, oldUID, oldRefs)
+				result, retryAfter = r.resolveArtifactManifestsAsync(nn, oldGeneration, oldUID, oldRefs, adapter)
 				return retryAfter
 			}).Should(BeZero())
 
@@ -608,7 +611,7 @@ var _ = Describe("Artifact manifest jobs", func() {
 			Expect(retryAfter).To(BeZero())
 			Expect(calls.Load()).To(Equal(int32(1)))
 
-			_, retryAfter = r.resolveArtifactManifestsAsync(nn, newGeneration, newUID, newRefs)
+			_, retryAfter = r.resolveArtifactManifestsAsync(nn, newGeneration, newUID, newRefs, adapter)
 			Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
 			Eventually(calls.Load).Should(Equal(int32(2)))
 		},

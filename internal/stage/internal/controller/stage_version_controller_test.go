@@ -219,4 +219,5 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 			}, time.Second*2, interval).Should(Succeed())
 		})
 	})
+
 })

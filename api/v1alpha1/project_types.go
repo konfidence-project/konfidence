@@ -92,6 +92,23 @@ type ProjectSpec struct {
 	// +kubebuilder:validation:MaxProperties=32
 	// +optional
 	RoleBindings map[string]Subjects `json:"roleBindings,omitempty"`
+
+	// Credentials supplies credentials for OCM repositories accessed within this project.
+	// Secrets must be in the project namespace. If omitted, the OCM client runs
+	// unauthenticated (suitable for public registries).
+	// +optional
+	Credentials *Credentials `json:"credentials,omitempty"`
+
+	// VerifyVector lists candidate signatures evaluated against deployment vectors
+	// fetched for this project. If omitted, vector signature verification is disabled.
+	// +optional
+	VerifyVector *Verify `json:"verifyVector,omitempty"`
+
+	// VerifyArtifacts lists candidate signatures evaluated against every artifact
+	// referenced by deployment vectors in this project. If omitted, artifact
+	// signature verification is disabled.
+	// +optional
+	VerifyArtifacts *Verify `json:"verifyArtifacts,omitempty"`
 }
 
 // Subjects is the list of subjects that hold a role. A caller holds the role
