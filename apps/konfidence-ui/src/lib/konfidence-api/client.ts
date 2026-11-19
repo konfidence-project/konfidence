@@ -14,17 +14,13 @@ interface CreateApiClientOptions {
   onUnauthorized?: () => void;
 }
 
-const DEFAULT_API_BASE_URL = "/api";
-
 /**
- * Resolves the API base URL from `VITE_KONFIDENCE_API_BASE_URL` at build time,
- * falling back to the same-origin `/api` path. When the value is a fully
- * qualified URL (http/https), the client treats the API as cross-origin and
- * sends credentialed requests; the backend must then respond with matching
- * CORS headers (`Access-Control-Allow-Origin` + `Access-Control-Allow-Credentials`).
+ * The configured value identifies the Konfidence server and does not include
+ * the `/api` path or a trailing slash. An empty value uses the current origin.
  */
-const resolveApiBaseUrl = (): string =>
-  import.meta.env.VITE_KONFIDENCE_API_BASE_URL ?? DEFAULT_API_BASE_URL;
+const KONFIDENCE_API_BASE_URL = import.meta.env.VITE_KONFIDENCE_API_BASE_URL ?? "";
+const KONFIDENCE_API_URL = `${KONFIDENCE_API_BASE_URL}/api`;
+const KONFIDENCE_API_DOCS_URL = `${KONFIDENCE_API_BASE_URL}/docs/`;
 
 const isCrossOrigin = (baseUrl: string): boolean => /^https?:\/\//i.test(baseUrl);
 
@@ -36,7 +32,7 @@ const credentialsFor = (baseUrl: string): RequestCredentials => {
 };
 
 const createApiClient = ({
-  baseUrl = resolveApiBaseUrl(),
+  baseUrl = KONFIDENCE_API_URL,
   fetch,
   onUnauthorized,
 }: CreateApiClientOptions = {}): ApiClient => {
@@ -61,5 +57,5 @@ const createApiClient = ({
   return client;
 };
 
-export { createApiClient, resolveApiBaseUrl };
+export { KONFIDENCE_API_URL, KONFIDENCE_API_BASE_URL, KONFIDENCE_API_DOCS_URL, createApiClient };
 export type { ApiClient };

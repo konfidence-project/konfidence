@@ -55,7 +55,7 @@ test.describe("application shell", () => {
 
     const apiExplorer = page.getByTestId("api-explorer");
     await expect(apiExplorer).toBeVisible();
-    await expect(apiExplorer).toHaveAttribute("href", "/docs/");
+    await expect(apiExplorer).toHaveAttribute("href", "http://127.0.0.1:8091/docs/");
     await expect(apiExplorer).toHaveAttribute("target", "_blank");
     await expect(apiExplorer).toHaveAttribute("rel", "noopener noreferrer");
 

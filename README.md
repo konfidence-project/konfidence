@@ -71,7 +71,7 @@ pnpm install
 pnpm ui:dev:mock
 ```
 
-This starts the dashboard and the OpenAPI-validated mock server together. The dashboard calls the mock API directly at `http://127.0.0.1:8091/api`. To develop against another API, set `VITE_KONFIDENCE_API_BASE_URL` to its public API base URL before running `pnpm ui:dev`.
+This starts the dashboard and the OpenAPI-validated mock server together. The dashboard calls the mock API directly at `http://127.0.0.1:8091/api`. To develop against another API, set `VITE_KONFIDENCE_API_BASE_URL` to its public server URL without the `/api` path or a trailing slash before running `pnpm ui:dev`.
 
 The design system in `packages/konfidence-design-system` is a workspace package that the dashboard imports from source, so changes to it show up live in the same development server.
 
@@ -108,8 +108,8 @@ Production releases include the static SPA in the API image. The API serves the 
 
 ### API explorer
 
-The API server exposes interactive Swagger documentation from the same
-origin as the API:
+The API server exposes interactive Swagger documentation from the configured
+API origin:
 
 - `/docs/` serves the Swagger UI API explorer.
 - `/docs/openapi.json` serves the OpenAPI specification embedded in the
@@ -121,11 +121,10 @@ assets are also embedded in the API binary and do not require an external
 CDN.
 
 Open the explorer from the **API Explorer** link in the authenticated
-dashboard. The explorer, embedded specification, and Swagger UI assets require
-a valid `kden-session`; unauthenticated requests receive `401 Unauthorized`.
-Requests made through Swagger UI target the relative `/api` server and include
-the browser's existing session cookie, so they use the same authorization as
-dashboard requests.
+dashboard. Its URL is built from `VITE_KONFIDENCE_API_BASE_URL`, allowing the
+dashboard and API to use different origins. The explorer, embedded specification,
+and Swagger UI assets require a valid `kden-session`; unauthenticated requests
+receive `401 Unauthorized`.
 
 ### Typed API client
 

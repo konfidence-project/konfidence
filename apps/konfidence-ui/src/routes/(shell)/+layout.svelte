@@ -16,6 +16,7 @@
     import SideNav from "#lib/shell/SideNav.svelte";
     import ThemeSwitcher from "#lib/shell/ThemeSwitcher.svelte";
     import UserMenu from "#lib/shell/UserMenu.svelte";
+    import { KONFIDENCE_API_DOCS_URL } from "#lib/konfidence-api/client.ts";
 
     /**
      * Authenticated shell layout.
@@ -91,7 +92,7 @@
                         <ProjectSelector />
                     {/snippet}
                     {#snippet actions()}
-                        <Link href="/docs/" target="_blank" rel="noopener noreferrer" data-testid="api-explorer">API Explorer</Link>
+                        <Link href={KONFIDENCE_API_DOCS_URL} target="_blank" rel="noopener noreferrer" data-testid="api-explorer">API Explorer</Link>
                         <ThemeSwitcher />
                         <UserMenu />
                     {/snippet}

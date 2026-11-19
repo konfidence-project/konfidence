@@ -3,7 +3,7 @@ import { invalidateQueries } from "svelte-tiny-query";
 import type { AuthStatus, AuthUser } from "#lib/auth/types.ts";
 import { toAuthUser } from "#lib/auth/types.ts";
 import type { ApiClient } from "#lib/konfidence-api/client.ts";
-import { resolveApiBaseUrl } from "#lib/konfidence-api/client.ts";
+import { KONFIDENCE_API_URL } from "#lib/konfidence-api/client.ts";
 import { goto } from "$app/navigation";
 import { HTTP_UNAUTHORIZED } from "#lib/http-status.ts";
 import { AUTHENTICATED_QUERY_ROOT } from "#lib/queries.svelte.ts";
@@ -37,11 +37,13 @@ class SessionStore {
   error = $state<string | undefined>(undefined);
 
   readonly #client: ApiClient;
+  readonly #apiUrl: string;
   #inflight: Promise<void> | undefined = undefined;
   #pendingCacheClear: Promise<void> | undefined = undefined;
 
-  constructor(client: ApiClient) {
+  constructor(client: ApiClient, apiUrl = KONFIDENCE_API_URL) {
     this.#client = client;
+    this.#apiUrl = apiUrl
   }
 
   /** Called by the API client middleware when it sees a 401 response. */
@@ -54,7 +56,7 @@ class SessionStore {
   }
 
   buildLoginUrl(returnTo?: string): string {
-    const apiBaseUrl = resolveApiBaseUrl();
+    const apiBaseUrl = this.#apiUrl;
     const returnUrl = this.#buildReturnUrl(returnTo, apiBaseUrl);
 
     return `${apiBaseUrl}${LOGIN_API_ROUTE}?return_url=${encodeURIComponent(returnUrl)}`;
