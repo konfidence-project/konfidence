@@ -113,7 +113,7 @@ func NewVectorPromotionConfigReconciler(mgr ctrl.Manager) *VectorPromotionConfig
 // watched cross-resource because the config cannot own them: ownership is
 // reference-shaped and stages live in other namespaces, where owner
 // references are not allowed.
-func (r *VectorPromotionConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *VectorPromotionConfigReconciler) SetupWithManager(mgr ctrl.Manager, excludedNamespaces pkgctrl.NamespaceExclusions) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.VectorPromotionConfig{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		// bubble up vector promotion conditions
@@ -131,5 +131,5 @@ func (r *VectorPromotionConfigReconciler) SetupWithManager(mgr ctrl.Manager) err
 			handler.EnqueueRequestsFromMapFunc(r.mapLandscapeToConfigs),
 			builder.WithPredicates(landscapeNamespaceChanged())).
 		Named("vectorPromotionConfig").
-		Complete(r)
+		Complete(excludedNamespaces.Wrap(r))
 }

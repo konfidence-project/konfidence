@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
+
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/pkg/promotiongate"
 	. "github.com/onsi/ginkgo/v2"
@@ -28,7 +30,7 @@ func startWatchedExecutionManager() {
 	})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(RegisterFieldIndexes(ctx, mgr)).To(Succeed())
-	Expect(NewVectorPromotionReconciler(mgr).SetupWithManager(mgr)).To(Succeed())
+	Expect(NewVectorPromotionReconciler(mgr).SetupWithManager(mgr, pkgctrl.NamespaceExclusions{})).To(Succeed())
 	managerCtx, stop := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	go func() { done <- mgr.Start(managerCtx) }()

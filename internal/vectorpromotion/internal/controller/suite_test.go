@@ -94,7 +94,7 @@ func startManager() {
 	Expect(RegisterFieldIndexes(ctx, mgr)).To(Succeed())
 
 	Expect(NewVectorPromotionConfigReconciler(mgr).
-		SetupWithManager(mgr)).To(Succeed())
+		SetupWithManager(mgr, pkgctrl.NamespaceExclusions{})).To(Succeed())
 
 	managerCtx, managerCancel := context.WithCancel(ctx)
 	go func() {

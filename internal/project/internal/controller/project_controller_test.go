@@ -35,7 +35,7 @@ var _ = Describe("Project Controller", Ordered, func() {
 
 	BeforeAll(func() {
 		k8sClient, cancel = StartTestManagerWithReconciler(func(mgr ctrl.Manager) error {
-			return controller.NewProjectReconciler(mgr).SetupWithManager(mgr)
+			return controller.NewProjectReconciler(mgr).SetupWithManager(mgr, pkgctrl.NamespaceExclusions{})
 		})
 	})
 

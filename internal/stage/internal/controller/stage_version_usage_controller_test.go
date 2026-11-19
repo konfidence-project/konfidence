@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
+
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/stage/internal/controller"
 	. "github.com/onsi/ginkgo/v2"
@@ -26,7 +28,7 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 			return (&controller.StageVersionUsageReconciler{
 				Client: mgr.GetClient(),
 				Scheme: mgr.GetScheme(),
-			}).SetupWithManager(mgr)
+			}).SetupWithManager(mgr, pkgctrl.NamespaceExclusions{})
 		},
 		)
 	})

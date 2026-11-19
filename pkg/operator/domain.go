@@ -8,14 +8,16 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 // Deps carries the runtime dependencies shared by every domain setup.
 type Deps struct {
-	Mgr    manager.Manager
-	Logger logr.Logger
+	ExcludedNamespaces pkgctrl.NamespaceExclusions
+	Mgr                manager.Manager
+	Logger             logr.Logger
 
 	// Limiter is the process-wide budget for all CPU-bound crypto work —
 	// the verification matrix AND signing. For the global bound to hold, the

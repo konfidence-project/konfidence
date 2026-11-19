@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/konfidence-project/konfidence/internal/project/internal/controller"
@@ -17,7 +18,7 @@ func Domain() operator.Domain {
 		Name:        OperatorFlagName,
 		Controllers: "Project",
 		Setup: func(_ context.Context, deps operator.Deps) error {
-			return SetupControllers(deps.Mgr, Options{})
+			return SetupControllers(deps.Mgr, Options{}, deps.ExcludedNamespaces)
 		},
 	}
 }
@@ -26,6 +27,6 @@ func Domain() operator.Domain {
 type Options struct{}
 
 // SetupControllers registers all project controllers with the given manager.
-func SetupControllers(mgr ctrl.Manager, _ Options) error {
-	return controller.NewProjectReconciler(mgr).SetupWithManager(mgr)
+func SetupControllers(mgr ctrl.Manager, _ Options, excludedNamespaces pkgctrl.NamespaceExclusions) error {
+	return controller.NewProjectReconciler(mgr).SetupWithManager(mgr, excludedNamespaces)
 }

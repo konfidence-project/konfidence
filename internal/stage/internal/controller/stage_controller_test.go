@@ -30,7 +30,7 @@ var _ = Describe("Stage Controller", Ordered, func() {
 				Client:   mgr.GetClient(),
 				Scheme:   mgr.GetScheme(),
 				Recorder: mgr.GetEventRecorder(controller.StageControllerName),
-			}).SetupWithManager(mgr)
+			}).SetupWithManager(mgr, pkgctrl.NamespaceExclusions{})
 		},
 		)
 	})

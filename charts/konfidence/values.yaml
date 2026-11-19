@@ -17,6 +17,8 @@ crd:
 # Forwarded as flags to the operator binary (cmd/konfidence).
 
 controller:
+  # -- Namespaces whose resources are skipped before reconciliation. Changes roll out the operator.
+  excludeNamespaces: []
   # -- Deploy the controller. When false, the chart renders only the CRDs
   # (gated by `crd.install`) and skips Deployment, ServiceAccount, RBAC,
   # Service, ServiceMonitor, and PodDisruptionBudget. Useful for installing
