@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import { createApiClient } from "#lib/konfidence-api/client.ts";
+import { KONFIDENCE_API_URL, createApiClient } from "#lib/konfidence-api/client.ts";
 import { SessionStore } from "#lib/auth/session.svelte.ts";
 
 /**
@@ -39,14 +39,15 @@ const mockFetchReject = (error: Error): void => {
  * production wiring in `+layout.svelte` without touching the module-level
  * singleton in `client-instance.ts`.
  */
-const createTestSession = (): SessionStore => {
+const createTestSession = (apiUrl = KONFIDENCE_API_URL): SessionStore => {
   // Indirection through an object lets the middleware close over the store
   // that is created immediately after the client, avoiding a TDZ reference.
   const holder: { store?: SessionStore } = {};
   const client = createApiClient({
+    baseUrl: apiUrl,
     onUnauthorized: () => holder.store?.handleUnauthorized(),
   });
-  holder.store = new SessionStore(client);
+  holder.store = new SessionStore(client, apiUrl);
   return holder.store;
 };
 

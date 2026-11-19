@@ -28,7 +28,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
 
@@ -99,8 +98,7 @@ describe("session store", () => {
   });
 
   it("uses a relative return path when the API is same-origin", () => {
-    vi.stubEnv("VITE_KONFIDENCE_API_BASE_URL", "/api");
-    const session = createTestSession();
+    const session = createTestSession("/api");
     const loginUrl = new URL(session.buildLoginUrl("/projects/foo"), globalThis.location.origin);
 
     expect(loginUrl.origin).toBe(globalThis.location.origin);
@@ -109,16 +107,14 @@ describe("session store", () => {
   });
 
   it("uses the root path when no returnTo path is provided", () => {
-    vi.stubEnv("VITE_KONFIDENCE_API_BASE_URL", "/api");
-    const session = createTestSession();
+    const session = createTestSession("/api");
     const loginUrl = new URL(session.buildLoginUrl(), globalThis.location.origin);
 
     expect(loginUrl.searchParams.get("return_url")).toBe("/");
   });
 
   it("uses an absolute UI return URL when the API is cross-origin", () => {
-    vi.stubEnv("VITE_KONFIDENCE_API_BASE_URL", "https://api.example.com/api");
-    const session = createTestSession();
+    const session = createTestSession("https://api.example.com/api");
     const loginUrl = new URL(session.buildLoginUrl("/projects/foo"));
 
     expect(loginUrl.origin).toBe("https://api.example.com");
@@ -129,8 +125,7 @@ describe("session store", () => {
   });
 
   it("uses a relative return path when an absolute API URL is same-origin", () => {
-    vi.stubEnv("VITE_KONFIDENCE_API_BASE_URL", `${globalThis.location.origin}/api`);
-    const session = createTestSession();
+    const session = createTestSession(`${globalThis.location.origin}/api`);
     const loginUrl = new URL(session.buildLoginUrl("/projects/foo"));
 
     expect(loginUrl.origin).toBe(globalThis.location.origin);
@@ -144,16 +139,14 @@ describe("session store", () => {
     String.raw`/\attacker.example.com`,
     "projects/foo",
   ])("falls back to the root path for an unsafe returnTo value: %s", (returnTo) => {
-    vi.stubEnv("VITE_KONFIDENCE_API_BASE_URL", "/api");
-    const session = createTestSession();
+    const session = createTestSession("/api");
     const loginUrl = new URL(session.buildLoginUrl(returnTo), globalThis.location.origin);
 
     expect(loginUrl.searchParams.get("return_url")).toBe("/");
   });
 
   it("uses the absolute UI root for an unsafe target with a cross-origin API", () => {
-    vi.stubEnv("VITE_KONFIDENCE_API_BASE_URL", "https://api.example.com/api");
-    const session = createTestSession();
+    const session = createTestSession("https://api.example.com/api");
     const loginUrl = new URL(session.buildLoginUrl("https://attacker.example.com/projects"));
 
     expect(loginUrl.searchParams.get("return_url")).toBe(
