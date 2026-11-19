@@ -39,4 +39,3 @@ test("retries a promotion conflict through the shared client", async () => {
   expect(response.status).toBe(204);
   expect(fetch).toHaveBeenCalledTimes(2);
 });
-

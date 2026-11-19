@@ -4,11 +4,11 @@
     import { formatTimestamp } from "./format-timestamp.ts";
 
     const toneClasses = {
-        healthy: { icon: "bg-status-healthy-bg text-status-healthy-fg", label: "text-status-healthy-fg" },
         error: { icon: "bg-status-error-bg text-status-error-fg", label: "text-status-error-fg" },
+        healthy: { icon: "bg-status-healthy-bg text-status-healthy-fg", label: "text-status-healthy-fg" },
         queued: { icon: "bg-status-queued-bg text-status-queued-fg", label: "text-content-secondary" },
     };
-    const stateIcons: Record<string, string> = { Satisfied: "✓", Error: "!" };
+    const stateIcons: Record<string, string> = { Error: "!", Satisfied: "✓" };
 
     interface Props { gates?: readonly PromotionGate[]; }
     let { gates }: Props = $props();

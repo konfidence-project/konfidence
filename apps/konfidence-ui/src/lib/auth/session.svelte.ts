@@ -43,7 +43,7 @@ class SessionStore {
 
   constructor(client: ApiClient, apiUrl = KONFIDENCE_API_URL) {
     this.#client = client;
-    this.#apiUrl = apiUrl
+    this.#apiUrl = apiUrl;
   }
 
   /** Called by the API client middleware when it sees a 401 response. */
