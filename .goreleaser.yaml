@@ -63,6 +63,21 @@ builds:
     ldflags:
       - -s -w -X github.com/konfidence-project/konfidence/pkg/build.Version={{.Version}} -X github.com/konfidence-project/konfidence/pkg/build.GitCommit={{.ShortCommit}} -X github.com/konfidence-project/konfidence/pkg/build.Date={{.Date}}
 
+  - id: kden-conformance
+    binary: kden-conformance
+    main: ./cmd/kden-conformance
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/konfidence-project/konfidence/pkg/build.Version={{.Version}} -X github.com/konfidence-project/konfidence/pkg/build.GitCommit={{.ShortCommit}} -X github.com/konfidence-project/konfidence/pkg/build.Date={{.Date}}
+
   - id: api
     binary: api
     main: ./cmd/api
@@ -93,6 +108,14 @@ archives:
       {{- .Os }}-
       {{- if eq .Arch "amd64" }}x86_64
       {{- else }}{{ .Arch }}{{ end }}
+
+  - id: kden-conformance
+    ids: [kden-conformance]
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "kden-conformance-{{ .Os }}-{{ if eq .Arch \"amd64\" }}x86_64{{ else }}{{ .Arch }}{{ end }}"
 
 checksum:
   name_template: checksums.txt
