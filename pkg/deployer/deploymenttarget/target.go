@@ -5,6 +5,7 @@ package deploymenttarget
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	konfidencev1alpha1 "github.com/konfidence-project/konfidence/api/v1alpha1"
@@ -15,8 +16,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// ErrMultipleReadyTargets is returned by FindReady when more than one ready target matches.
+var ErrMultipleReadyTargets = errors.New("multiple Ready DeploymentTargets")
+
 // FindReady lists ready targets for a given ArtifactType in the namespace. There should be at most one
-// target of a type per namespace. This method returns an error if multiple ready targets match.
+// target of a type per namespace. This method returns an error wrapping ErrMultipleReadyTargets if multiple
+// ready targets match.
 func FindReady(
 	ctx context.Context,
 	reader client.Reader,
@@ -34,7 +39,7 @@ func FindReady(
 			continue
 		}
 		if match != nil {
-			return nil, fmt.Errorf("multiple DeploymentTargets in namespace %q for artifact type %q", namespace, artifactType)
+			return nil, fmt.Errorf("%w in namespace %q for artifact type %q", ErrMultipleReadyTargets, namespace, artifactType)
 		}
 		match = &targets.Items[i]
 	}

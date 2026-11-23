@@ -24,13 +24,21 @@ const (
 	// ArtifactDeploymentReadyCondition indicates that the resource was successfully reconciled.
 	ArtifactDeploymentReadyCondition = "Ready"
 
+	// ArtifactDeploymentReconcilingCondition indicates that the deployer expects automatic reconciliation to make
+	// further progress.
+	ArtifactDeploymentReconcilingCondition = "Reconciling"
+
 	// ArtifactDeploymentStalledReasonManifestMissing indicates that the Konfidence manifest is absent from the artifact.
 	// A transient fetch failure is not this reason.
 	ArtifactDeploymentStalledReasonManifestMissing = "ManifestMissing"
 
-	// ArtifactDeploymentStalledReasonDeploymentTargetSecretsMissing indicates that DeploymentTarget credentials are absent.
-	// Set it only after a deadline, since secrets often arrive asynchronously.
-	ArtifactDeploymentStalledReasonDeploymentTargetSecretsMissing = "DeploymentTargetSecretsMissing"
+	// ArtifactDeploymentStalledReasonNoReadyDeploymentTarget indicates that no DeploymentTarget for the artifact type
+	// is Ready.
+	ArtifactDeploymentStalledReasonNoReadyDeploymentTarget = "NoReadyDeploymentTarget"
+
+	// ArtifactDeploymentStalledReasonMultipleReadyDeploymentTargets indicates that more than one DeploymentTarget for
+	// the artifact type is Ready in the namespace.
+	ArtifactDeploymentStalledReasonMultipleReadyDeploymentTargets = "MultipleReadyDeploymentTargets"
 
 	// ArtifactDeploymentStalledReasonDeploymentResultNotUnique indicates that two DeploymentResults share a (name, type).
 	ArtifactDeploymentStalledReasonDeploymentResultNotUnique = "DeploymentResultNotUnique"
