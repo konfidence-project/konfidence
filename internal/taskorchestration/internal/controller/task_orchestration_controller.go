@@ -435,7 +435,7 @@ var (
 )
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *TaskOrchestrationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *TaskOrchestrationReconciler) SetupWithManager(mgr ctrl.Manager, excludedNamespaces pkgctrl.NamespaceExclusions) error {
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &konfidence.TaskExecution{}, vectorMigrationOwnerKey, func(rawObj client.Object) []string {
 		// grab the taskExecution object and extract the owner
 		taskExecution := rawObj.(*konfidence.TaskExecution)
@@ -458,7 +458,7 @@ func (r *TaskOrchestrationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&konfidence.VectorMigration{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&konfidence.TaskExecution{}).
 		Named("taskOrchestration").
-		Complete(r)
+		Complete(excludedNamespaces.Wrap(r))
 }
 
 func (r *TaskOrchestrationReconciler) constructStageVersionUsage(vectorMigration *konfidence.VectorMigration) (*konfidence.StageVersionUsage, error) {

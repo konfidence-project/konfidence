@@ -358,7 +358,7 @@ func getStageVersionName(stage *konfidence.Stage) string {
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *StageReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *StageReconciler) SetupWithManager(mgr ctrl.Manager, excludedNamespaces pkgctrl.NamespaceExclusions) error {
 	noUpdatePredicate := predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			return false
@@ -385,5 +385,5 @@ func (r *StageReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&konfidence.StageVersion{}, builder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, noUpdatePredicate))).
 		Owns(&konfidence.StageVersionUsage{}, builder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, noUpdatePredicate))).
 		Named("stage").
-		Complete(r)
+		Complete(excludedNamespaces.Wrap(r))
 }

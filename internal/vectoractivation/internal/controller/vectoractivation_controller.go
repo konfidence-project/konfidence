@@ -10,6 +10,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/vectoractivation/internal/activation"
 	leaselock "github.com/konfidence-project/konfidence/internal/vectoractivation/internal/lock"
 	"github.com/konfidence-project/konfidence/internal/vectoractivation/internal/usage"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -248,7 +249,7 @@ func (r *VectorActivationReconciler) LoadActivationContextData(
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *VectorActivationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *VectorActivationReconciler) SetupWithManager(mgr ctrl.Manager, excludedNamespaces pkgctrl.NamespaceExclusions) error {
 	r.ControllerID = os.Getenv("POD_NAME")
 	if r.ControllerID == "" {
 		r.ControllerID = ActivationControllerName
@@ -268,7 +269,7 @@ func (r *VectorActivationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				CreateFunc:  func(e event.CreateEvent) bool { return false },
 				GenericFunc: func(e event.GenericEvent) bool { return false },
 			})).
-		Complete(r)
+		Complete(excludedNamespaces.Wrap(r))
 }
 
 func (r *VectorActivationReconciler) cleanupVectorActivation(

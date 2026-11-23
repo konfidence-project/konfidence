@@ -61,7 +61,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		}
 
 		SetManifestPollIntervalForTest(reconciler, 20*time.Millisecond)
-		gomega.Expect(reconciler.SetupWithManager(k8sManager, controllerName)).To(gomega.Succeed())
+		gomega.Expect(reconciler.SetupWithManager(k8sManager, controllerName, pkgctrl.NamespaceExclusions{})).To(gomega.Succeed())
 	})
 
 	BeforeEach(func() {

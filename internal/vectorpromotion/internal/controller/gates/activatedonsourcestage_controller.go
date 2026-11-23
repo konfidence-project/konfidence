@@ -7,6 +7,7 @@ import (
 	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"github.com/konfidence-project/konfidence/pkg/promotiongate"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -242,7 +243,7 @@ func stageVersionBecameReady() predicate.Funcs {
 	}
 }
 
-func (r *ActivatedOnSourceStageReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *ActivatedOnSourceStageReconciler) SetupWithManager(mgr ctrl.Manager, excludedNamespaces pkgctrl.NamespaceExclusions) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.VectorPromotion{}, builder.WithPredicates(hasActivatedOnSourceStageGate())).
 		Watches(
@@ -251,5 +252,5 @@ func (r *ActivatedOnSourceStageReconciler) SetupWithManager(mgr ctrl.Manager) er
 			builder.WithPredicates(stageVersionBecameReady()),
 		).
 		Named(ActivatedOnSourceStageControllerName).
-		Complete(r)
+		Complete(excludedNamespaces.Wrap(r))
 }

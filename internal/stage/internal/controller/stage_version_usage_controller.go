@@ -166,7 +166,7 @@ func (r *StageVersionUsageReconciler) resolveStageVersions(
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *StageVersionUsageReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *StageVersionUsageReconciler) SetupWithManager(mgr ctrl.Manager, excludedNamespaces pkgctrl.NamespaceExclusions) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.StageVersionUsage{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
@@ -174,7 +174,7 @@ func (r *StageVersionUsageReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.reconcileStageVersionUsages),
 		).
 		Named("stageVersionUsage").
-		Complete(r)
+		Complete(excludedNamespaces.Wrap(r))
 }
 
 func (r *StageVersionUsageReconciler) reconcileStageVersionUsages(ctx context.Context, obj client.Object) []reconcile.Request {

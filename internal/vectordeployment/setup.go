@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -46,7 +47,7 @@ func Domain() operator.Domain {
 			return SetupControllers(ctx, deps.Mgr, deps.Logger, Options{
 				OCISecret: registrySecret,
 				Verifier:  deps.Verifier,
-			})
+			}, deps.ExcludedNamespaces)
 		},
 	}
 }
@@ -85,7 +86,7 @@ type Options struct {
 }
 
 // SetupControllers registers all vector deployment controllers with the given manager.
-func SetupControllers(ctx context.Context, mgr manager.Manager, logger logr.Logger, opts Options) error {
+func SetupControllers(ctx context.Context, mgr manager.Manager, logger logr.Logger, opts Options, excludedNamespaces pkgctrl.NamespaceExclusions) error {
 	if opts.Verifier == nil {
 		return fmt.Errorf("setup: Verifier is required; usually from operator.Deps.Verifier")
 	}
@@ -130,7 +131,7 @@ func SetupControllers(ctx context.Context, mgr manager.Manager, logger logr.Logg
 		OcmAdapter: ocmAdapter,
 		MaxArtifactManifestDownloadsPerDeployment: manifestDownloadsPerDeployment,
 		MaxGlobalArtifactManifestDownloads:        globalManifestDownloads,
-	}).SetupWithManager(mgr, "vectordeployment"); err != nil {
+	}).SetupWithManager(mgr, "vectordeployment", excludedNamespaces); err != nil {
 		logger.Error(err, "unable to create controller", "controller", "VectorDeployment")
 		return err
 	}

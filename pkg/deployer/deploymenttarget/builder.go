@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	konfidencev1alpha1 "github.com/konfidence-project/konfidence/api/v1alpha1"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/events"
@@ -78,6 +79,7 @@ type watch struct {
 
 type builder struct {
 	manager                ctrl.Manager
+	excludedNamespaces     pkgctrl.NamespaceExclusions
 	controllerName         string
 	supportedArtifactTypes konfidencev1alpha1.ArtifactTypeSet
 	validation             ValidationFunc
@@ -87,6 +89,12 @@ type builder struct {
 // NewControllerManagedBy starts a builder bound to mgr.
 func NewControllerManagedBy(mgr ctrl.Manager) *builder {
 	return &builder{manager: mgr}
+}
+
+// WithNamespaceExclusions skips requests in excluded namespaces before reconciliation.
+func (b *builder) WithNamespaceExclusions(exclusions pkgctrl.NamespaceExclusions) *builder {
+	b.excludedNamespaces = exclusions
+	return b
 }
 
 // For sets the artifact types this controller supports. It is required.
@@ -160,7 +168,7 @@ func (b *builder) complete(r *reconciler) error {
 		cb = cb.Watches(watched.object, eventHandler, watched.opts...)
 	}
 
-	return cb.Named(r.controllerName).Complete(r)
+	return cb.Named(r.controllerName).Complete(b.excludedNamespaces.Wrap(r))
 }
 
 func (b *builder) validateConfiguration() error {

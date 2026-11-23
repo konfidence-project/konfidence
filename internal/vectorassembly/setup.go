@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	lru "github.com/hashicorp/golang-lru/v2"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -25,7 +26,7 @@ func Domain() operator.Domain {
 			return SetupControllers(deps.Mgr, Options{
 				Limiter:  deps.Limiter,
 				Verifier: deps.Verifier,
-			})
+			}, deps.ExcludedNamespaces)
 		},
 	}
 }
@@ -40,7 +41,7 @@ type Options struct {
 }
 
 // SetupControllers registers all vector assembly controllers with the given manager.
-func SetupControllers(mgr ctrl.Manager, opts Options) error {
+func SetupControllers(mgr ctrl.Manager, opts Options, excludedNamespaces pkgctrl.NamespaceExclusions) error {
 	if opts.Limiter == nil {
 		return fmt.Errorf("setup: Limiter is required; use crypto.NewLimiter(0) for GOMAXPROCS")
 	}
@@ -62,7 +63,7 @@ func SetupControllers(mgr ctrl.Manager, opts Options) error {
 		log,
 		vectorCache,
 		vector.TimestampVectorVersionGenerator,
-	).SetupWithManager(mgr); err != nil {
+	).SetupWithManager(mgr, excludedNamespaces); err != nil {
 		return err
 	}
 

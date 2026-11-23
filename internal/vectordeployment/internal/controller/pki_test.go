@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"time"
 
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
+
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectordeployment"
 	"github.com/konfidence-project/konfidence/pkg/ocm/credentials"
@@ -144,7 +146,7 @@ var _ = Describe("VectorDeployment pki enabled", Ordered, Serial, func() {
 		gomega.Expect(vectordeployment.SetupControllers(pkiCtx, pkiManager, ctrl.Log, vectordeployment.Options{
 			OCISecret: ociSecret,
 			Verifier:  pkiVerifier,
-		})).To(gomega.Succeed())
+		}, pkgctrl.NamespaceExclusions{})).To(gomega.Succeed())
 	})
 
 	AfterEach(func() {
@@ -279,7 +281,7 @@ var _ = Describe("VectorDeployment pki disabled", Ordered, Serial, func() {
 		gomega.Expect(vectordeployment.SetupControllers(noVerifyCtx, noVerifyManager, ctrl.Log, vectordeployment.Options{
 			OCISecret: ociSecret,
 			Verifier:  noVerifyVerifier,
-		})).To(gomega.Succeed())
+		}, pkgctrl.NamespaceExclusions{})).To(gomega.Succeed())
 	})
 
 	AfterEach(func() {

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
+
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -94,7 +96,7 @@ var _ = BeforeSuite(func() {
 		Config:       cfg,
 		ControllerID: ActivationControllerName,
 		Recorder:     recorder,
-	}).SetupWithManager(k8sManager)
+	}).SetupWithManager(k8sManager, pkgctrl.NamespaceExclusions{})
 	Expect(err).ToNot(HaveOccurred())
 
 	go func() {
