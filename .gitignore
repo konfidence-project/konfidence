@@ -34,6 +34,7 @@ bin/*/
 bin/konfidence
 bin/ginkgo
 bin/kden
+bin/kden-conformance
 bin/envtest-apiserver
 
 # Do not ignore hermit binary and pkg files in bin/
@@ -56,6 +57,9 @@ test/data/crds/
 
 # chainsaw e2e JUnit reports
 /e2e-report/
+
+# Conformance run reports
+conformance-results/
 
 # Generated ClusterRole manifests fed to charts/patch-clusterrole.sh
 config/rbac/

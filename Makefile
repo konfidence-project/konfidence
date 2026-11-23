@@ -263,7 +263,7 @@ GINKGO ?= $(LOCALBIN)/ginkgo
 ##@ Testing
 
 .PHONY: test
-test: hermit manifests generate fmt vet test-operators test-pkg test-kden-cli test-api ## Run all unit tests.
+test: hermit manifests generate fmt vet test-operators test-pkg test-kden-cli test-conformance-impl test-api ## Run all unit tests.
 
 .PHONY: test-operators
 test-operators: hermit manifests setup-envtest ginkgo ## Run unit tests for the konfidence operator.
@@ -277,6 +277,10 @@ test-pkg: hermit ginkgo ## Run unit tests for shared pkg packages.
 .PHONY: test-kden-cli
 test-kden-cli: hermit ginkgo ## Run unit tests for the kden CLI.
 	$(GINKGO) --coverprofile=cover-kden-cli.out -v ./cmd/kden/... ./internal/kden/...
+
+.PHONY: test-conformance-impl
+test-conformance-impl: hermit ## Test the conformance tool implementation; does not execute deployer conformance scenarios.
+	go test ./internal/conformance/... ./cmd/kden-conformance/...
 
 .PHONY: test-api
 test-api: hermit fmt vet ginkgo ## Run unit tests for the API server and kden API client.
@@ -383,7 +387,7 @@ ginkgo: hermit ## Install ginkgo CLI to LOCALBIN.
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet build-operator build-kden-cli ## Build all binaries.
+build: manifests generate fmt vet build-operator build-kden-cli build-conformance ## Build all binaries.
 
 .PHONY: build-operator
 build-operator: hermit ## Build the konfidence operator binary.
@@ -393,6 +397,10 @@ build-operator: hermit ## Build the konfidence operator binary.
 build-kden-cli: hermit ## Build the kden cli binary.
 	pnpm cli-pages:build
 	GORELEASER_CURRENT_TAG=dev goreleaser build --clean --snapshot --single-target --skip=before --id kden -o bin/kden
+
+.PHONY: build-conformance
+build-conformance: hermit ## Build the standalone conformance executable.
+	GORELEASER_CURRENT_TAG=dev goreleaser build --clean --snapshot --single-target --skip=before --id kden-conformance -o bin/kden-conformance
 
 .PHONY: run
 run: manifests generate fmt vet ## Run the konfidence operator from your host.
