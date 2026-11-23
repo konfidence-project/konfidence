@@ -48,7 +48,7 @@ func NewRunCmd() *cobra.Command {
 	flags.StringVar(&options.OCMRegistryConfig, "ocm-registry-config", "",
 		"Kubernetes Secret manifest file for optional OCM registry credentials")
 	// These names are defined immediately above, so marking them cannot fail.
-	if err := command.MarkFlagRequired("artifact-reference"); err != nil {
+	runtime.Must(command.MarkFlagRequired("artifact-reference"))
 		panic(err)
 	}
 	if err := command.MarkFlagRequired("deployment-target-spec"); err != nil {
