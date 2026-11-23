@@ -8,12 +8,15 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   prerelease:
     name: Pre-release
-    permissions:
-      contents: write
-    uses: konfidence-project/.github/.github/workflows/prerelease-pipeline.yaml@v4
-    secrets: inherit
+    if: github.ref == 'refs/heads/main'
+    uses: konfidence-project/.github/.github/workflows/prerelease-pipeline.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
+    secrets:
+      KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
     with:
       version: ${{ inputs.version }}

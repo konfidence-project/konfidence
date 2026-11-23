@@ -1,70 +1,55 @@
 name: Release PR
-
 on:
   push:
-    branches:
-      - main
-
+    branches: [main]
+permissions:
+  contents: read
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
-
 jobs:
   release-please:
     name: Release PR
-    permissions:
-      contents: write
-      pull-requests: write
-    uses: konfidence-project/.github/.github/workflows/release-please.yaml@v4
-    secrets: inherit
-
-  # The jobs below only run on the push that merges a release PR. Chaining them
-  # behind release-please (instead of triggering on the tag push) guarantees the
-  # draft release exists before goreleaser looks for it.
+    uses: konfidence-project/.github/.github/workflows/release-please.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
+    secrets:
+      KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
   release:
     name: Release
     needs: [release-please]
     if: needs.release-please.outputs.release_created == 'true'
+    uses: ./.github/workflows/lint-test-build.yaml
+  publish:
+    needs: [release-please, release]
+    if: needs.release-please.outputs.release_created == 'true'
     permissions:
       contents: write
       packages: write
-      attestations: write
-      id-token: write
-    uses: ./.github/workflows/lint-test-build.yaml
-    secrets: inherit
+    uses: konfidence-project/.github/.github/workflows/goreleaser.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # protected release environment
     with:
       mode: release
-      # pins GORELEASER_CURRENT_TAG to the tag release-please just created
       snapshot-tag: ${{ needs.release-please.outputs.tag_name }}
-
   publish-helm-charts:
     name: Publish Helm Charts
-    needs: [release-please, release]
+    needs: [release-please, publish]
     if: needs.release-please.outputs.release_created == 'true'
     permissions:
       contents: read
       packages: write
-    uses: konfidence-project/.github/.github/workflows/publish-helm-charts.yaml@v4
-    secrets: inherit
+    uses: konfidence-project/.github/.github/workflows/publish-helm-charts.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
     with:
       version: ${{ needs.release-please.outputs.tag_name }}
       charts: charts/konfidence
-
   publish-release:
     name: Publish Release
-    needs: [release-please, release, publish-helm-charts]
+    needs: [release-please, publish, publish-helm-charts]
     if: needs.release-please.outputs.release_created == 'true'
+    environment: release
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: konfidence-project/.github/.github/actions/github-app-auth@v4
-        with:
-          client-id: ${{ vars.GH_APP_ID }}
-          private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
-
       - name: Publish release
-        # Releases from this pipeline are the real releases and should be
-        # "Latest". Manually dispatched rc tags go through release-pipeline.yaml
-        # instead, which leaves goreleaser's prerelease marking in place.
-        run: gh release edit '${{ needs.release-please.outputs.tag_name }}' --repo "${GITHUB_REPOSITORY}" --draft=false --prerelease=false --latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease=false --latest

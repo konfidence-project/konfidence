@@ -44,20 +44,20 @@ jobs:
       group: e2e-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
       - name: Checkout selected Konfidence core
         id: core
         if: github.event_name == 'workflow_dispatch' && inputs.stack != 'Latest releases' && inputs.konfidence_ref != ''
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.konfidence_ref }}
           path: .tmp/konfidence-core
           persist-credentials: false
 
-      - uses: cashapp/activate-hermit@v1
+      - uses: cashapp/activate-hermit@cea9af7913204a965fd488637a8d1811bba2e616 # v1
 
       - name: Install snapshot CLI
         id: snapshot-cli
@@ -104,14 +104,14 @@ jobs:
 
       - name: Summary
         if: always() && hashFiles('e2e-report/*.xml') != ''
-        uses: test-summary/action@v2
+        uses: test-summary/action@37b508cfee6d4d080eedd00b5bb240a6a784a6a5 # v2
         with:
           paths: e2e-report/*.xml
           show: all
 
       - name: Upload failure snapshot
         if: always() && hashFiles('.tmp/e2e-snapshot/*.tar.gz') != ''
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: e2e-snapshot-${{ github.run_attempt }}
           path: .tmp/e2e-snapshot/*.tar.gz

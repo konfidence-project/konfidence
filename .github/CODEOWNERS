@@ -1,0 +1,10 @@
+# CI changes require review by project maintainers. Enable required code-owner
+# reviews in the repository ruleset; CODEOWNERS alone does not enforce approval.
+/.github/ @chrisbleyerSAP @christianneu
+/Makefile @chrisbleyerSAP @christianneu
+/hack/ @chrisbleyerSAP @christianneu
+/scripts/ @chrisbleyerSAP @christianneu
+/bin/ @chrisbleyerSAP @christianneu
+/package.json @chrisbleyerSAP @christianneu
+/pnpm-lock.yaml @chrisbleyerSAP @christianneu
+/.goreleaser* @chrisbleyerSAP @christianneu

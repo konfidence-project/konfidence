@@ -1,59 +1,45 @@
 name: Release
-
-# Release-please tags (X.Y.Z) are built by the Release PR pipeline, chained
-# directly behind release-please so the draft
-# release exists before goreleaser runs. This tag-triggered pipeline only
-# serves manually dispatched rc tags, which have no release-please draft to
-# race against. The pattern must never overlap with release-please tags or the
-# release builds twice.
+# Stable releases are chained behind release-please; only manual RC tags here.
 on:
   push:
-    tags:
-      - '[0-9]+.[0-9]+.[0-9]+-rc.*'
-
+    tags: ['[0-9]+.[0-9]+.[0-9]+-rc.*']
+permissions:
+  contents: read
 jobs:
   version:
     name: Validate Release Tag
-    uses: konfidence-project/.github/.github/workflows/validate-release-tag.yaml@v4
-    secrets: inherit
-
+    uses: konfidence-project/.github/.github/workflows/validate-release-tag.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
   lint-test-build:
     name: Release
     needs: [version]
+    uses: ./.github/workflows/lint-test-build.yaml
+  publish:
+    needs: [lint-test-build]
     permissions:
       contents: write
       packages: write
-      attestations: write
-      id-token: write
-    uses: konfidence-project/konfidence/.github/workflows/lint-test-build.yaml@main
-    secrets: inherit
+    uses: konfidence-project/.github/.github/workflows/goreleaser.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # protected release environment
     with:
       mode: release
-      # snapshot-tag is intentionally omitted — goreleaser uses the actual git tag in release mode
-
   publish-helm-charts:
     name: Publish Helm Charts
-    needs: [version, lint-test-build]
+    needs: [version, publish]
     permissions:
       contents: read
       packages: write
-    uses: konfidence-project/.github/.github/workflows/publish-helm-charts.yaml@v4
-    secrets: inherit
+    uses: konfidence-project/.github/.github/workflows/publish-helm-charts.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
     with:
       version: ${{ needs.version.outputs.version }}
       charts: charts/konfidence
-
   publish-release:
     name: Publish Release
-    needs: [lint-test-build, publish-helm-charts]
+    needs: [publish, publish-helm-charts]
+    environment: release
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: konfidence-project/.github/.github/actions/github-app-auth@v4
-        with:
-          client-id: ${{ vars.GH_APP_ID }}
-          private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
-
       - name: Undraft release
-        run: gh release edit "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --draft=false
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false

@@ -1,92 +1,57 @@
 name: PR
-
 on:
   pull_request:
     branches: [main]
   merge_group:
-
+permissions:
+  contents: read
 jobs:
   lint-test-build:
     name: PR
-    permissions:
-      contents: write
-      packages: write
-      attestations: write
-      id-token: write
     uses: ./.github/workflows/lint-test-build.yaml
-    with:
-      mode: pr
-      snapshot-tag: ${{ github.sha }}
 
   secret-scanning-review:
     name: Secret Scanning Review
-    if: github.event_name == 'pull_request'
-    permissions:
-      contents: read
-    uses: konfidence-project/.github/.github/workflows/secret-scanning-review.yaml@v4
-    secrets: inherit
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
+    uses: konfidence-project/.github/.github/workflows/secret-scanning-review.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # metadata only, no PR checkout
+    secrets:
+      KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
 
   codeql-status:
     name: CodeQL Status
-    # CodeQL default setup skips analysis for some PRs (e.g. Dependabot-triggered
-    # ones, or PRs that touch no analyzable code), leaving the CodeQL check NEUTRAL.
-    # The polling step below treats NEUTRAL/SKIPPED as a pass so the gate does not
-    # time out on those PRs.
     if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
-      security-events: read
+      contents: read
+      checks: read
     steps:
-      - name: Check CodeQL result
+      - name: Check CodeQL result for the exact PR commit
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           for i in $(seq 1 20); do
-            CONCLUSION=$(gh api graphql -f query='
-              query($owner: String!, $repo: String!, $ref: String!) {
-                repository(owner: $owner, name: $repo) {
-                  ref(qualifiedName: $ref) {
-                    target {
-                      ... on Commit {
-                        checkSuites(first: 10) {
-                          nodes {
-                            checkRuns(first: 20, filterBy: {checkName: "CodeQL"}) {
-                              nodes { name conclusion }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }' \
-              -f owner='${{ github.repository_owner }}' \
-              -f repo='${{ github.event.repository.name }}' \
-              -f ref='${{ github.head_ref }}' \
-              --jq '[.data.repository.ref.target.checkSuites.nodes[].checkRuns.nodes[] | select(.name == "CodeQL")] | first | .conclusion' \
-              2>/dev/null || echo "null")
+            CONCLUSION=$(gh api "repos/$GITHUB_REPOSITORY/commits/$PR_SHA/check-runs?check_name=CodeQL&filter=latest" \
+              --jq '[.check_runs[] | select(.app.slug == "github-advanced-security")] | first | .conclusion')
             echo "Attempt $i: CodeQL conclusion: $CONCLUSION"
-            if [ "$CONCLUSION" = '"SUCCESS"' ] || [ "$CONCLUSION" = 'SUCCESS' ]; then
-              echo "CodeQL passed"
-              exit 0
-            elif [ "$CONCLUSION" = '"FAILURE"' ] || [ "$CONCLUSION" = 'FAILURE' ]; then
-              echo "CodeQL failed"
-              exit 1
-            elif [ "$CONCLUSION" = '"NEUTRAL"' ] || [ "$CONCLUSION" = 'NEUTRAL' ] \
-              || [ "$CONCLUSION" = '"SKIPPED"' ] || [ "$CONCLUSION" = 'SKIPPED' ]; then
-              echo "CodeQL did not analyze this PR (no analyzable code changes) — treating as pass"
-              exit 0
-            fi
-            echo "CodeQL not yet complete, waiting 30s..."
+            case "$CONCLUSION" in
+              success) exit 0 ;;
+              failure|cancelled|timed_out|action_required) exit 1 ;;
+              neutral|skipped)
+                echo 'CodeQL did not analyze this commit (no analyzable code changes)'; exit 0 ;;
+            esac
             sleep 30
           done
-          echo "CodeQL did not complete within 10 minutes"
+          echo 'CodeQL did not complete within 10 minutes'
           exit 1
 
   ci-gate:
     name: CI Gate
     needs: [lint-test-build, secret-scanning-review, codeql-status]
     if: always()
-    uses: konfidence-project/.github/.github/workflows/ci-gate.yaml@v4
+    uses: konfidence-project/.github/.github/workflows/ci-gate.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
     with:
       needs-json: ${{ toJson(needs) }}
