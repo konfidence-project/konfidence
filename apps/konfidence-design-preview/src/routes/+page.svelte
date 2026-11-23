@@ -3,6 +3,7 @@
     import Atoms from "#lib/gallery/sections/Atoms.svelte";
     import Buttons from "#lib/gallery/sections/Buttons.svelte";
     import Charts from "#lib/gallery/sections/Charts.svelte";
+    import Changes from "#lib/gallery/sections/Changes.svelte";
     import Colors from "#lib/gallery/sections/Colors.svelte";
     import DataBlocks from "#lib/gallery/sections/DataBlocks.svelte";
     import Feedback from "#lib/gallery/sections/Feedback.svelte";
@@ -38,6 +39,7 @@
         { id: "shell-patterns", label: "Shell patterns", status: "partial" },
         { id: "data-blocks", label: "Data blocks", status: "partial" },
         { id: "lists", label: "Lists", status: "partial" },
+        { id: "change-list", label: "Change list", status: "implemented" },
         { id: "pipeline", label: "Pipeline", status: "partial" },
         { id: "hero", label: "Page header", status: "partial" },
         { id: "logs-code", label: "Logs & code", status: "placeholder" },
@@ -101,6 +103,7 @@
         <ShellPatterns />
         <DataBlocks />
         <Lists />
+        <Changes />
         <Pipeline />
         <Hero />
         <LogsAndCode />
