@@ -628,6 +628,8 @@ export interface components {
     };
     StageVersion: {
       id: components["schemas"]["StageVersionId"];
+      /** @description The associated VectorDeployment id. Null until it has been created. */
+      vectorDeploymentId: components["schemas"]["VectorDeploymentId"] | null;
       /** @description StageVersion vector */
       vector: string;
       /** @description Generation of the parent stage */

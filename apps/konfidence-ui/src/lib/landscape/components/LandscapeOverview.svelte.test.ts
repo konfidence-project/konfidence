@@ -96,6 +96,7 @@ const stage: Stage = {
     stageGeneration: 1,
     status: "Ready",
     vector: "registry.example.com/delivery/vector:1.0.0",
+    vectorDeploymentId: "dev-api-v1",
   },
   id: "dev-api",
   landscapeId: "primary",
@@ -105,6 +106,7 @@ const stage: Stage = {
     stageGeneration: 2,
     status: "DeployingVector",
     vector: "registry.example.com/delivery/vector:2.0.0",
+    vectorDeploymentId: "dev-api-v2",
   },
 };
 const stages: readonly Stage[] = [stage];
@@ -116,6 +118,7 @@ const rolledOutStage: Stage = {
     stageGeneration: 1,
     status: "Ready",
     vector: "registry.example.com/delivery/vector:1.0.0",
+    vectorDeploymentId: "dev-api-v1",
   },
   id: "prod-api",
   landscapeId: "primary",
@@ -125,6 +128,7 @@ const rolledOutStage: Stage = {
     stageGeneration: 1,
     status: "Ready",
     vector: "registry.example.com/delivery/vector:1.0.0",
+    vectorDeploymentId: "dev-api-v1",
   },
 };
 

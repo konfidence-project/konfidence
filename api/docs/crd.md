@@ -610,6 +610,7 @@ LocalObjectReference references an object by name within the same namespace as t
 
 
 _Appears in:_
+- [StageVersionStatus](#stageversionstatus)
 - [VectorDeploymentStatus](#vectordeploymentstatus)
 
 | Field | Description | Default | Validation |
@@ -1217,6 +1218,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
+| `vectorDeploymentRef` _[LocalObjectReference](#localobjectreference)_ | VectorDeploymentRef references the VectorDeployment created for this<br />StageVersion. It is absent until creation succeeds. |  | Optional: \{\} <br /> |
 
 
 ### StageVersionUsage

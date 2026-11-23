@@ -1071,10 +1071,15 @@ components:
 
     StageVersion:
       type: object
-      required: [id, vector, stageGeneration, status]
+      required: [id, vector, stageGeneration, status, vectorDeploymentId]
       properties:
         id:
           $ref: "#/components/schemas/StageVersionId"
+        vectorDeploymentId:
+          description: The associated VectorDeployment id. Null until it has been created.
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/VectorDeploymentId"
         vector:
           type: string
           description: StageVersion vector
