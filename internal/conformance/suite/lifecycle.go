@@ -2,16 +2,12 @@ package suite
 
 import (
 	"fmt"
-	"time"
 
 	sharedcredentials "github.com/konfidence-project/konfidence/pkg/ocm/credentials"
 	"github.com/onsi/ginkgo/v2"
-	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // registerLifecycle gives Ginkgo ownership of run-scoped registry resources.
@@ -21,15 +17,7 @@ func registerLifecycle(environment *Environment) {
 		if len(environment.Inputs.RegistrySecrets) == 0 {
 			return
 		}
-		if environment.Client == nil {
-			scheme := runtime.NewScheme()
-			gomega.Expect(corev1.AddToScheme(scheme)).To(gomega.Succeed())
-			k8sClient, err := client.New(environment.Inputs.Cluster, client.Options{Scheme: scheme})
-			if err != nil {
-				ginkgo.Fail("cannot initialize Kubernetes client for registry credentials")
-			}
-			environment.Client = k8sClient
-		}
+		initializeClient(environment)
 		namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{GenerateName: "kden-conformance-"}}
 		if err := environment.Client.Create(ctx, namespace); err != nil {
 			ginkgo.Fail("cannot create shared conformance namespace")
@@ -39,7 +27,7 @@ func registerLifecycle(environment *Environment) {
 			if err := environment.Client.Delete(cleanupCtx, namespace); err != nil && !apierrors.IsNotFound(err) {
 				ginkgo.Fail(fmt.Sprintf("cannot delete shared conformance namespace %q", namespace.Name))
 			}
-		}, ginkgo.NodeTimeout(30*time.Second))
+		}, ginkgo.NodeTimeout(scenarioCleanupTimeout))
 
 		refs := make([]sharedcredentials.Ref, 0, len(environment.Inputs.RegistrySecrets))
 		for _, source := range environment.Inputs.RegistrySecrets {
@@ -56,5 +44,5 @@ func registerLifecycle(environment *Environment) {
 			ginkgo.Fail("cannot load OCM registry credentials; check the Secrets' .ocmconfig or .dockerconfigjson data")
 		}
 		environment.RegistryCredentials = resolver
-	}, ginkgo.NodeTimeout(time.Minute))
+	}, ginkgo.NodeTimeout(defaultScenarioTimeout))
 }

@@ -171,6 +171,79 @@ when the conformance step fails:
 
 ## Development
 
+### DeploymentTarget scenarios
+
+The initial section 2 checks live in
+`internal/conformance/suite/deploymenttarget.go`. Each covered keyword has its own
+Ginkgo `It` and keyword label:
+
+| Keyword | Scenario |
+| --- | --- |
+| [0018] | Supported target becomes ready; foreign types receive no observable spec, status, finalizer, label, annotation, owner-reference, or deletion-timestamp changes. |
+| [0019] | Foreign targets' status remains unchanged. |
+| [0022] | A target referencing a nonexistent parameter resource is rejected with `Ready=False`. |
+| [0027] | The supplied valid target becomes `Ready=True`. |
+| [0029] | A missing parameter resource produces `Ready=False` with a nonempty reason and message. |
+
+The shared hook in `scenario_setup.go` configures timeouts and polling,
+initializes the client, creates a fresh namespace, and copies setup resources
+before any target is created. `DeferCleanup` requests namespace deletion even
+after a failure, partial setup, or interruption. Cluster-scoped setup resources
+are rejected. The suite never modifies the caller's baseline manifests.
+
+Scenario files are separated by responsibility:
+
+- `scenario_setup.go`: common fixture hooks, timeout configuration and budgets,
+  client initialization, namespace lifecycle, and setup-resource creation.
+- `deploymenttarget_setup.go`: baseline target construction, missing-reference
+  variants, foreign target fixtures, and target API access.
+- `deploymenttarget.go`: clearly marked context-specific setup hooks followed by
+  keyword specs and contract assertions. `It` bodies assert behavior; fixture
+  creation belongs in the preceding `BeforeEach` hooks.
+
+Gomega's asynchronous defaults are installed by the common hook, including
+enforcing the status timeout when assertions receive a `SpecContext`.
+
+For ownership checks, a ready supported target demonstrates an active deployer.
+The suite then creates two randomly generated foreign types: one under the same
+provider domain and one under a different domain. Gomega `Consistently` checks
+them throughout the observation interval. Run against an isolated environment
+with no other controller claiming these generated types. The checks detect
+observable reconciliation effects, not internal reconcile method invocations.
+
+The missing-reference scenarios are derived by changing only the referenced
+resource's name. They do not guess how to corrupt provider-owned payloads.
+Checks [0022] and [0029] are skipped when the baseline has no parameter reference.
+For [0029], descriptive quality beyond a nonempty reason/message still requires
+human judgment.
+
+Configure positive Go durations through:
+
+- `KDEN_CONFORMANCE_TIMEOUT` (default `1m`): per-scenario setup and status waits.
+- `KDEN_CONFORMANCE_OBSERVATION_TIMEOUT` (default `10s`): foreign-target observations.
+
+Status assertions use `Eventually`; ownership observations use `Consistently`,
+both polling every 250 ms. Ginkgo `SpecTimeout` bounds each complete scenario,
+including setup. These execution bounds are not normative deployer deadlines.
+
+The initial set does not create `ArtifactDeployment` resources, resolve the
+application artifact, or inspect destination runtime resources. The remaining
+section 2 keywords are deliberately excluded:
+
+- [0020–0021], [0028]: optional, provider-specific behavior.
+- [0023], [0032–0033]: need independent destination-runtime observations.
+- [0024–0025]: need documentation review or provider-specific safety fixtures.
+- [0026]: needs a meaningful provider-specific referenced-resource mutation.
+- [0030], [0034]: concern core rather than the deployer.
+- [0031]: presence alone cannot verify a name and release version without an
+  agreed controller-identifier format.
+
+`deploymenttarget_test.go` exercises these scenarios through the existing
+framework in subprocesses with a fake client. It checks native JUnit/JSON
+results, failures for each covered keyword, skips, delayed foreign-target changes,
+setup ordering, input preservation, and cleanup after failure and cancellation.
+These implementation tests do not establish a real deployer's conformance.
+
 The implementation follows the repository's CLI layout:
 
 ```text
@@ -191,7 +264,9 @@ scenarios. The regular lint/test/build workflow gates builds on these implementa
 
 Define conformance scenarios in regular `.go` files under
 `internal/conformance/suite`, using the `Environment` passed to
-`registerScenarios`. Use Ginkgo lifecycle hooks for scenario setup and cleanup,
+`registerScenarios`. The enclosing `Describe` registers `registerScenarioSetup`
+once; new scenario groups reuse its namespace and timing configuration.
+Use Ginkgo lifecycle hooks for resource-specific setup and cleanup,
 and Gomega assertions for the contract checks. Use Ginkgo's `SpecContext`,
 `SpecTimeout` and `NodeTimeout` for interruptible operations. The suite and
 reporter configurations start from Ginkgo's defaults, with report destinations

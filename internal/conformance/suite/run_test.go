@@ -10,7 +10,7 @@ import (
 )
 
 func TestEmptySuite(t *testing.T) {
-	result, err := Run(context.Background(), &setup.Inputs{}, Options{ReportDir: t.TempDir()})
+	result, err := runFramework(&Environment{Context: context.Background()}, Options{ReportDir: t.TempDir()}, func(*Environment) {})
 	if err != nil || result.Executed != 0 {
 		t.Fatalf("unexpected empty suite result: %+v, %v", result, err)
 	}

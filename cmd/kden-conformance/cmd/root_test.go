@@ -76,7 +76,7 @@ func TestVersion(t *testing.T) {
 	}
 }
 
-func TestEmptySuite(t *testing.T) {
+func TestUnavailableCluster(t *testing.T) {
 	directory := t.TempDir()
 	t.Setenv("DOCKER_CONFIG", directory)
 	files := map[string]string{
@@ -110,11 +110,8 @@ current-context: test
 	})
 	var output bytes.Buffer
 	command.SetOut(&output)
-	if err := command.Execute(); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(output.String(), "Executed 0") || !strings.Contains(output.String(), "No conformance checks") {
-		t.Fatalf("unexpected empty-suite output: %s", output.String())
+	if err := command.Execute(); err == nil {
+		t.Fatal("unavailable cluster must not produce a successful conformance run")
 	}
 	for _, name := range []string{"junit.xml", "report.json"} {
 		if _, err := os.Stat(filepath.Join(directory, "reports", name)); err != nil {
