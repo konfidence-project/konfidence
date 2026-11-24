@@ -6,6 +6,10 @@ on:
 permissions:
   contents: read
 jobs:
+  workflow-security:
+    name: Workflow Security
+    uses: ./.github/workflows/workflow-lint.yaml
+
   lint-test-build:
     name: PR
     uses: ./.github/workflows/lint-test-build.yaml
@@ -50,7 +54,7 @@ jobs:
 
   ci-gate:
     name: CI Gate
-    needs: [lint-test-build, secret-scanning-review, codeql-status]
+    needs: [workflow-security, lint-test-build, secret-scanning-review, codeql-status]
     if: always()
     uses: konfidence-project/.github/.github/workflows/ci-gate.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
     with:

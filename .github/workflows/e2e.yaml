@@ -57,7 +57,8 @@ jobs:
           path: .tmp/konfidence-core
           persist-credentials: false
 
-      - uses: cashapp/activate-hermit@cea9af7913204a965fd488637a8d1811bba2e616 # v1
+      - name: Activate repository Hermit environment
+        run: ./bin/hermit env --raw >> "$GITHUB_ENV"
 
       - name: Install snapshot CLI
         id: snapshot-cli

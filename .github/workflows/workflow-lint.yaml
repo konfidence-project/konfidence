@@ -1,7 +1,11 @@
 name: Workflow security
+# PR/merge-group runs are called by pr-pipeline.yaml and included in CI Gate.
 on:
-  pull_request:
-    paths: ['.github/**']
+  workflow_call:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 6 * * 1'
 permissions:
   contents: read
 jobs:
