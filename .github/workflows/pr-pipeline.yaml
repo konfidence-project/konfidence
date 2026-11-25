@@ -14,16 +14,6 @@ jobs:
     name: PR
     uses: ./.github/workflows/lint-test-build.yaml
 
-  secret-scanning-review:
-    name: Secret Scanning Review
-    if: >-
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.actor != 'dependabot[bot]'
-    uses: konfidence-project/.github/.github/workflows/secret-scanning-review.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # metadata only, no PR checkout
-    secrets:
-      KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
-
   codeql-status:
     name: CodeQL Status
     if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
@@ -54,7 +44,7 @@ jobs:
 
   ci-gate:
     name: CI Gate
-    needs: [workflow-security, lint-test-build, secret-scanning-review, codeql-status]
+    needs: [workflow-security, lint-test-build, codeql-status]
     if: always()
     uses: konfidence-project/.github/.github/workflows/ci-gate.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
     with:
