@@ -52,6 +52,13 @@ test.describe("application shell", () => {
 
     await expect(page.getByTestId("brand-home")).toBeVisible();
     await expect(page.locator(".topbar").getByTestId("project-switch")).toBeVisible();
+
+    const apiExplorer = page.getByTestId("api-explorer");
+    await expect(apiExplorer).toBeVisible();
+    await expect(apiExplorer).toHaveAttribute("href", "http://127.0.0.1:8091/docs/");
+    await expect(apiExplorer).toHaveAttribute("target", "_blank");
+    await expect(apiExplorer).toHaveAttribute("rel", "noopener noreferrer");
+
     await expect(page.getByTestId("user-menu-trigger")).toBeVisible();
     await expect(page.locator('nav[aria-label="Primary"]')).toBeVisible();
   });
@@ -140,6 +147,7 @@ test.describe("embedded mode", () => {
     await expect(page.getByTestId("brand-home")).toHaveCount(0);
     await expect(page.getByTestId("user-menu-trigger")).toHaveCount(0);
     await expect(page.getByTestId("landscape-flow")).toBeVisible();
+    await expect(page.getByTestId("api-explorer")).toHaveCount(0);
   });
 
   test("preserves ?embedded=1 across internal client-side navigation", async ({ page }) => {

@@ -487,6 +487,9 @@ type StageVersion struct {
 
 	// Vector StageVersion vector
 	Vector string `json:"vector"`
+
+	// VectorDeploymentId The associated VectorDeployment id. Null until it has been created.
+	VectorDeploymentId *VectorDeploymentId `json:"vectorDeploymentId"`
 }
 
 // StageVersionStatus Derived rollout state of the stageVersion. PendingDeployment: created, vector deployment not yet started. DeployingVector: vector deployment in progress. MigratingVector: migration tasks running. ActivatingVector: activation tasks running (transient). Ready: fully rolled out. Failed: reserved for failure detection; not emitted yet.

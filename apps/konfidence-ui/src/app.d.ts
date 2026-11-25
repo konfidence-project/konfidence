@@ -6,7 +6,7 @@ declare global {
     // interface Locals {}
     // interface PageData {}
     interface PageState {
-      readonly overlayOrigin?: "landscape" | "deployment";
+      readonly overlayOrigin?: "landscape" | "deployment" | "promotion";
       readonly stageOverlay?: {
         readonly projectId: string;
         readonly landscapeId: string;
@@ -18,10 +18,9 @@ declare global {
 
   interface ImportMetaEnv {
     /**
-     * Base URL of the Konfidence API. Defaults to the same-origin `/api` path.
-     * Set to a fully-qualified `https://...` URL when the API is hosted on a
-     * different origin; the fetch client then switches to `credentials: "include"`
-     * and the backend must send matching CORS headers.
+     * Base URL of the Konfidence API server without the `/api` path or a
+     * trailing slash. Defaults to the current origin. Set to a fully-qualified
+     * URL when the API is hosted on a different origin.
      */
     readonly VITE_KONFIDENCE_API_BASE_URL?: string;
   }

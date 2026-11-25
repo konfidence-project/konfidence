@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
@@ -18,15 +19,15 @@ import (
 // that is still provisioning.
 func scopedLandscapeFixture(name, projectNamespace, managedNamespace string) *konfidence.Landscape {
 	return &konfidence.Landscape{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: projectNamespace},
-		Status:     konfidence.LandscapeStatus{Namespace: managedNamespace},
+		Name: name, Namespace: projectNamespace,
+		Status: konfidence.LandscapeStatus{Namespace: managedNamespace},
 	}
 }
 
 func stageFixture(name, namespace, vector string, generation int64) *konfidence.Stage {
 	return &konfidence.Stage{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace, Generation: generation},
-		Spec:       konfidence.StageSpec{Vector: vector},
+		Name: name, Namespace: namespace, Generation: generation,
+		Spec: konfidence.StageSpec{Vector: vector},
 	}
 }
 
@@ -49,7 +50,7 @@ func stageVersionFixture(name, namespace, stageName, vector string, stageGenerat
 	}
 
 	return &konfidence.StageVersion{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Name: name, Namespace: namespace,
 		Spec: konfidence.StageVersionSpec{
 			Vector:          vector,
 			StageGeneration: stageGeneration,
@@ -57,6 +58,13 @@ func stageVersionFixture(name, namespace, stageName, vector string, stageGenerat
 		},
 		Status: konfidence.StageVersionStatus{Conditions: conditions},
 	}
+}
+
+func vectorDeploymentRefFixture(stageVersion *konfidence.StageVersion, deploymentName string) *konfidence.StageVersion {
+	stageVersion.Status.VectorDeploymentRef = &konfidence.LocalObjectReference{
+		Name: deploymentName,
+	}
+	return stageVersion
 }
 
 type emptyStageScopeRepository struct {
@@ -118,11 +126,15 @@ var _ = Describe("ListStagesV1", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		dev := scopedLandscapeFixture("dev", "kden-p-my-project", "kden-l-dev")
 		stage := activeStageVersionFixture(stageFixture("alpha", "kden-l-dev", "vector:2", 2), "alpha-v1")
-		active := stageVersionFixture("alpha-v1", "kden-l-dev", "alpha", "vector:1", 1,
-			konfidence.VectorDeploymentCreatedCondition, konfidence.VectorMigratedCondition,
-			konfidence.VectorActivationCreatedCondition, konfidence.StageVersionReady)
-		target := stageVersionFixture("alpha-v2", "kden-l-dev", "alpha", "vector:2", 2,
-			konfidence.VectorDeploymentCreatedCondition)
+		active := vectorDeploymentRefFixture(stageVersionFixture("alpha-v1", "kden-l-dev", "alpha", "vector:1", 1,
+			konfidence.VectorDeploymentCreatedCondition, konfidence.VectorMigratedCondition, konfidence.VectorActivationCreatedCondition, konfidence.StageVersionReady),
+			"active-alpha-deployment",
+		)
+		target := vectorDeploymentRefFixture(stageVersionFixture("alpha-v2", "kden-l-dev", "alpha", "vector:2", 2,
+			konfidence.VectorDeploymentCreatedCondition),
+			"target-alpha-deployment",
+		)
+
 		h := newProjectHandlerForTest(project, dev, stage, active, target)
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
@@ -132,13 +144,45 @@ var _ = Describe("ListStagesV1", func() {
 		item := resp.(openapi.ListStagesV1200JSONResponse).Data[0]
 		Expect(item.TargetStageVersion).NotTo(BeNil())
 		Expect(item.TargetStageVersion.Id).To(Equal("alpha-v2"))
+		Expect(item.TargetStageVersion.VectorDeploymentId).NotTo(BeNil())
+		Expect(*item.TargetStageVersion.VectorDeploymentId).To(Equal("target-alpha-deployment"))
 		Expect(item.TargetStageVersion.Vector).To(Equal("vector:2"))
 		Expect(item.TargetStageVersion.StageGeneration).To(Equal(2))
 		Expect(item.TargetStageVersion.Status).To(Equal(openapi.StageVersionStatusDeployingVector))
 		Expect(item.ActiveStageVersion).NotTo(BeNil())
 		Expect(item.ActiveStageVersion.Id).To(Equal("alpha-v1"))
+		Expect(item.ActiveStageVersion.VectorDeploymentId).NotTo(BeNil())
+		Expect(*item.ActiveStageVersion.VectorDeploymentId).To(Equal("active-alpha-deployment"))
 		Expect(item.ActiveStageVersion.StageGeneration).To(Equal(1))
 		Expect(item.ActiveStageVersion.Status).To(Equal(openapi.StageVersionStatusReady))
+	})
+
+	It("returns a null vector deployment id before the target deployment is created", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		dev := scopedLandscapeFixture("dev", "kden-p-my-project", "kden-l-dev")
+		stage := stageFixture("alpha", "kden-l-dev", "vector:1", 1)
+		target := stageVersionFixture("alpha-v1", "kden-l-dev", "alpha", "vector:1", 1)
+		h := newProjectHandlerForTest(project, dev, stage, target)
+
+		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
+		resp, err := h.ListStagesV1(ctx, openapi.ListStagesV1RequestObject{ProjectId: "my-project"})
+		Expect(err).NotTo(HaveOccurred())
+
+		item := resp.(openapi.ListStagesV1200JSONResponse).Data[0]
+		Expect(item.TargetStageVersion).NotTo(BeNil())
+		Expect(item.TargetStageVersion.Id).To(Equal("alpha-v1"))
+		Expect(item.TargetStageVersion.VectorDeploymentId).To(BeNil())
+		Expect(item.TargetStageVersion.Status).To(Equal(openapi.StageVersionStatusPendingDeployment))
+
+		encoded, err := json.Marshal(item.TargetStageVersion)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(encoded).To(MatchJSON(`{
+			"id": "alpha-v1",
+			"vectorDeploymentId": null,
+			"vector": "vector:1",
+			"stageGeneration": 1,
+			"status": "PendingDeployment"
+		}`))
 	})
 
 	It("returns only the stages of the filtered landscape", func() {
@@ -304,9 +348,12 @@ var _ = Describe("GetStageV1", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		dev := scopedLandscapeFixture("dev", "kden-p-my-project", "kden-dev")
 		stage := activeStageVersionFixture(stageFixture("a", "kden-dev", "vector:2", 2), "a-v1")
-		active := stageVersionFixture("a-v1", "kden-dev", "a", "vector:1", 1, konfidence.StageVersionReady)
-		target := stageVersionFixture("a-v2", "kden-dev", "a", "vector:2", 2,
-			konfidence.VectorDeploymentCreatedCondition)
+		active := vectorDeploymentRefFixture(stageVersionFixture("a-v1", "kden-dev", "a",
+			"vector:1", 1, konfidence.StageVersionReady), "active-a-deployment")
+		target := vectorDeploymentRefFixture(
+			stageVersionFixture("a-v2", "kden-dev", "a", "vector:2",
+				2, konfidence.VectorDeploymentCreatedCondition), "target-a-deployment")
+
 		h := newProjectHandlerForTest(project, dev, stage, active, target)
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
@@ -320,8 +367,34 @@ var _ = Describe("GetStageV1", func() {
 		item := resp.(openapi.GetStageV1200JSONResponse)
 		Expect(item.TargetStageVersion).NotTo(BeNil())
 		Expect(item.TargetStageVersion.Id).To(Equal("a-v2"))
+		Expect(item.TargetStageVersion.VectorDeploymentId).NotTo(BeNil())
+		Expect(*item.TargetStageVersion.VectorDeploymentId).To(Equal("target-a-deployment"))
 		Expect(item.ActiveStageVersion).NotTo(BeNil())
 		Expect(item.ActiveStageVersion.Id).To(Equal("a-v1"))
+		Expect(item.ActiveStageVersion.VectorDeploymentId).NotTo(BeNil())
+		Expect(*item.ActiveStageVersion.VectorDeploymentId).To(Equal("active-a-deployment"))
+	})
+
+	It("returns a null vector deployment id for a pending target version", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		dev := scopedLandscapeFixture("dev", "kden-p-my-project", "kden-dev")
+		stage := stageFixture("a", "kden-dev", "vector:1", 1)
+		target := stageVersionFixture("a-v1", "kden-dev", "a", "vector:1", 1)
+		h := newProjectHandlerForTest(project, dev, stage, target)
+
+		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
+		resp, err := h.GetStageV1(ctx, openapi.GetStageV1RequestObject{
+			ProjectId:   "my-project",
+			LandscapeId: "dev",
+			StageId:     "a",
+		})
+		Expect(err).NotTo(HaveOccurred())
+
+		item := resp.(openapi.GetStageV1200JSONResponse)
+		Expect(item.TargetStageVersion).NotTo(BeNil())
+		Expect(item.TargetStageVersion.Id).To(Equal("a-v1"))
+		Expect(item.TargetStageVersion.VectorDeploymentId).To(BeNil())
+		Expect(item.TargetStageVersion.Status).To(Equal(openapi.StageVersionStatusPendingDeployment))
 	})
 
 	It("returns 404 when the stage does not exist", func() {

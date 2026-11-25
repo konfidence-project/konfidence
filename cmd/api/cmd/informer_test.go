@@ -95,7 +95,9 @@ var _ = Describe("Informer lifecycle", func() {
 		}
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		apiServer := server.New(cfg, logger, http.NotFoundHandler())
+		apiServer := server.New(cfg, logger, http.NotFoundHandler(), func(next http.Handler) http.Handler {
+			return next
+		})
 
 		ctx, cancel := context.WithCancel(context.Background())
 		DeferCleanup(cancel)

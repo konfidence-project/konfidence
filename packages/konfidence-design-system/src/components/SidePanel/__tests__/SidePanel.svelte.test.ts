@@ -109,6 +109,55 @@ describe("<SidePanel>", () => {
     });
   });
 
+  describe("focus restoration", () => {
+    for (const modal of [false, true]) {
+      it(`preserves caller focus after a ${modal ? "modal" : "non-modal"} dismissal`, async () => {
+        const onClose = vi.fn();
+        await render(SidePanelFixture, { modal, onClose });
+        await page.getByTestId("open-btn").click();
+        await vi.waitFor(() =>
+          expect(document.activeElement).toBe(page.getByTestId("side-panel-close").element()),
+        );
+        await userEvent.keyboard("{Escape}");
+
+        await expect.element(page.getByTestId("side-panel")).not.toBeVisible();
+        (page.getByTestId("outside-btn").element() as HTMLElement).focus();
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        await expect.element(page.getByTestId("outside-btn")).toHaveFocus();
+        expect(onClose).toHaveBeenCalledOnce();
+      });
+
+      it(`completes a programmatic ${modal ? "modal" : "non-modal"} close without reporting a dismissal`, async () => {
+        const onClose = vi.fn();
+        await render(SidePanelFixture, { modal, onClose, open: true, width: 600 });
+        await vi.waitFor(() =>
+          expect(document.activeElement).toBe(page.getByTestId("side-panel-close").element()),
+        );
+
+        page
+          .getByTestId("set-closed")
+          .element()
+          .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+        await expect.element(page.getByTestId("side-panel")).not.toBeVisible();
+        expect(onClose).not.toHaveBeenCalled();
+      });
+    }
+
+    it("retains focus when converting an open panel's modality", async () => {
+      await render(SidePanelFixture, { modal: false, open: true });
+      await vi.waitFor(() =>
+        expect(document.activeElement).toBe(page.getByTestId("side-panel-close").element()),
+      );
+
+      await page.getByTestId("toggle-modal").click();
+
+      await expect.element(page.getByTestId("side-panel")).toHaveAttribute("aria-modal", "true");
+      await vi.waitFor(() => expect(document.body.style.overflow).toBe("hidden"));
+      await expect.element(page.getByTestId("side-panel-close")).toHaveFocus();
+    });
+  });
+
   describe("header offset geometry", () => {
     it("offsets below the app shell header when the header-height variable is present", async () => {
       await page.viewport(560, 480);

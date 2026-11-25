@@ -33,6 +33,7 @@
 <div style:--app-shell-header-height={headerHeight} data-testid="fixture-root">
     <button type="button" data-testid="open-btn" onclick={() => (open = true)}>Open</button>
     <button type="button" data-testid="outside-btn">Outside action</button>
+    <button type="button" data-testid="set-closed" onclick={() => (open = false)}>Close programmatically</button>
     <button type="button" data-testid="toggle-modal" onclick={() => (modal = !modal)}>Toggle modality</button>
     {#if width === undefined}
         <SidePanel bind:open {title} {onClose} {fullPageHref} {onWidthChange} {modal}>

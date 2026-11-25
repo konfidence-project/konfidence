@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/konfidence-project/konfidence/cmd/api/db/sqlc"
 	"github.com/konfidence-project/konfidence/internal/api/handler"
+	"github.com/konfidence-project/konfidence/internal/api/middleware"
 	"github.com/konfidence-project/konfidence/internal/api/oidc"
 	"github.com/konfidence-project/konfidence/internal/api/session"
 	"github.com/konfidence-project/konfidence/internal/kden/log"
@@ -299,7 +300,8 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("failed to create API handler: %w", err)
 	}
 
-	return runServerWithInformer(ctx, server.New(parsed, logger, api), k8sClient)
+	docsAuthentication := middleware.RequireSession(logger, sessionStore, parsed)
+	return runServerWithInformer(ctx, server.New(parsed, logger, api, docsAuthentication), k8sClient)
 }
 
 // envOr returns the value of the environment variable key, or fallback if unset.

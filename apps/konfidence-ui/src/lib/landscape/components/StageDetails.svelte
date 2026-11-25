@@ -19,6 +19,9 @@
 
     const targetVersionId = $derived(stage?.targetStageVersion?.id);
     const activeVersionId = $derived(stage?.activeStageVersion?.id);
+    const targetVectorDeploymentId = $derived(stage?.targetStageVersion?.vectorDeploymentId ?? undefined);
+    const activeVectorDeploymentId = $derived(stage?.activeStageVersion?.vectorDeploymentId ?? undefined);
+
     const collapsed = $derived(
         targetVersionId !== undefined && targetVersionId === activeVersionId,
     );
@@ -61,11 +64,11 @@
                 label="Target"
                 version={stage.targetStageVersion}
             />
-            {#if projectId !== undefined && targetVersionId !== undefined}
-                <VectorDeploymentSection
+            {#if projectId !== undefined && targetVectorDeploymentId !== undefined}
+            <VectorDeploymentSection
                     {projectId}
                     landscapeId={stage.landscapeId}
-                    vectorDeploymentId={targetVersionId}
+                    vectorDeploymentId={targetVectorDeploymentId}
                 />
             {/if}
         </div>
@@ -74,11 +77,11 @@
                 label="Active"
                 version={stage.activeStageVersion}
             />
-            {#if !collapsed && projectId !== undefined && activeVersionId !== undefined}
+            {#if !collapsed && projectId !== undefined && activeVectorDeploymentId !== undefined}
                 <VectorDeploymentSection
                     {projectId}
                     landscapeId={stage.landscapeId}
-                    vectorDeploymentId={activeVersionId}
+                    vectorDeploymentId={activeVectorDeploymentId}
                 />
             {/if}
         </div>

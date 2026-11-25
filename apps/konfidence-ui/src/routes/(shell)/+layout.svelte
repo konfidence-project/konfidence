@@ -3,7 +3,7 @@
     import { beforeNavigate, goto } from "$app/navigation";
     import { resolve } from "$app/paths";
     import { page } from "$app/state";
-    import { AppShell, TopBar } from "@konfidence/design-system/components";
+    import { AppShell, Link, TopBar } from "@konfidence/design-system/components";
     import { mode } from "mode-watcher";
     import {
         EMBEDDED_ON,
@@ -16,6 +16,7 @@
     import SideNav from "#lib/shell/SideNav.svelte";
     import ThemeSwitcher from "#lib/shell/ThemeSwitcher.svelte";
     import UserMenu from "#lib/shell/UserMenu.svelte";
+    import { KONFIDENCE_API_DOCS_URL } from "#lib/konfidence-api/client.ts";
 
     /**
      * Authenticated shell layout.
@@ -91,6 +92,7 @@
                         <ProjectSelector />
                     {/snippet}
                     {#snippet actions()}
+                        <Link href={KONFIDENCE_API_DOCS_URL} target="_blank" rel="noopener noreferrer" data-testid="api-explorer">API Explorer</Link>
                         <ThemeSwitcher />
                         <UserMenu />
                     {/snippet}

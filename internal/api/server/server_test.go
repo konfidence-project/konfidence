@@ -18,12 +18,44 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/server"
 )
+
+func allowAll(next http.Handler) http.Handler {
+	return next
+}
+
+func requireTestSession(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie("kden-session")
+		if err != nil || cookie.Value != "valid-session" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func authenticatedGet(client *http.Client, url string) *http.Response {
+	GinkgoHelper()
+
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+	Expect(err).NotTo(HaveOccurred())
+	request.AddCookie(&http.Cookie{
+		Name:  "kden-session",
+		Value: "valid-session",
+	})
+
+	response, err := client.Do(request)
+	Expect(err).NotTo(HaveOccurred())
+	return response
+}
 
 func validParsed() config.Parsed {
 	cfg := config.Config{
@@ -81,7 +113,7 @@ var _ = Describe("Server", func() {
 		})
 
 		It("starts and stops cleanly when context is cancelled", func() {
-			srv := server.New(validParsed(), getLogger(), http.NotFoundHandler())
+			srv := server.New(validParsed(), getLogger(), http.NotFoundHandler(), allowAll)
 			ctx, cancel := context.WithCancel(context.Background())
 
 			addrCh := make(chan string, 1)
@@ -100,7 +132,7 @@ var _ = Describe("Server", func() {
 		})
 
 		It("serves /healthz while running", func() {
-			srv := server.New(validParsed(), getLogger(), http.NotFoundHandler())
+			srv := server.New(validParsed(), getLogger(), http.NotFoundHandler(), allowAll)
 			ctx, cancel := context.WithCancel(context.Background())
 
 			addrCh := make(chan string, 1)
@@ -130,7 +162,7 @@ var _ = Describe("Server", func() {
 			cfg := validParsed()
 			cfg.Server.UIAssetPath = uiDir
 
-			srv := server.New(cfg, getLogger(), http.NotFoundHandler())
+			srv := server.New(cfg, getLogger(), http.NotFoundHandler(), allowAll)
 			ctx, cancel := context.WithCancel(context.Background())
 			DeferCleanup(cancel)
 
@@ -186,7 +218,7 @@ var _ = Describe("Server", func() {
 
 			srv := server.New(cfg, getLogger(), http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusOK)
-			}))
+			}), allowAll)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			DeferCleanup(cancel)
@@ -213,6 +245,97 @@ var _ = Describe("Server", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 			Expect(resp.Body.Close()).To(Succeed())
+
+			cancel()
+			Eventually(errCh, 3*time.Second).Should(Receive(BeNil()))
+		})
+
+		It("protects and serves the embedded OpenAPI specification and Swagger UI assets", func() {
+			srv := server.New(validParsed(), getLogger(), http.NotFoundHandler(), requireTestSession)
+			ctx, cancel := context.WithCancel(context.Background())
+			DeferCleanup(cancel)
+
+			addrCh := make(chan string, 1)
+			errCh := make(chan error, 1)
+			go func() {
+				errCh <- srv.ListenAndServe(ctx, func(addr string) {
+					addrCh <- addr
+				})
+			}()
+
+			var addr string
+			Eventually(addrCh, 3*time.Second).Should(Receive(&addr))
+
+			client := &http.Client{
+				CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+					return http.ErrUseLastResponse
+				},
+			}
+			DeferCleanup(client.CloseIdleConnections)
+
+			baseURL := "http://" + addr
+
+			for _, path := range []string{
+				"/docs",
+				"/docs/",
+				"/docs/openapi.json",
+				"/docs/swagger-ui.css",
+				"/docs/swagger-ui-bundle.js",
+			} {
+				response, err := client.Get(baseURL + path) //nolint:noctx
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusUnauthorized), "expected %s to require authentication", path)
+				Expect(response.Body.Close()).To(Succeed())
+			}
+
+			redirectResponse := authenticatedGet(client, baseURL+"/docs")
+			Expect(redirectResponse.StatusCode).To(Equal(http.StatusPermanentRedirect))
+			Expect(redirectResponse.Header.Get("Location")).To(Equal("/docs/"))
+			Expect(redirectResponse.Body.Close()).To(Succeed())
+
+			specResponse := authenticatedGet(client, baseURL+"/docs/openapi.json")
+			Expect(specResponse.StatusCode).To(Equal(http.StatusOK))
+			Expect(specResponse.Header.Get("Content-Type")).To(Equal("application/json"))
+
+			specBody, err := io.ReadAll(specResponse.Body)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(specResponse.Body.Close()).To(Succeed())
+
+			embeddedSpec, err := openapi.GetSpecJSON()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(specBody).To(Equal(embeddedSpec))
+
+			docsResponse := authenticatedGet(client, baseURL+"/docs/")
+			Expect(docsResponse.StatusCode).To(Equal(http.StatusOK))
+			Expect(docsResponse.Header.Get("Content-Type")).To(ContainSubstring("text/html"))
+
+			docsBody, err := io.ReadAll(docsResponse.Body)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(docsResponse.Body.Close()).To(Succeed())
+
+			docsHTML := string(docsBody)
+			Expect(docsHTML).To(ContainSubstring(`"swaggerJsonUrl":"/docs/openapi.json"`))
+			Expect(docsHTML).To(ContainSubstring("withCredentials: true"))
+			Expect(docsHTML).To(ContainSubstring(`src="/docs/swagger-ui-bundle.js"`))
+			Expect(docsHTML).NotTo(ContainSubstring("cdnjs.cloudflare.com"))
+			Expect(docsHTML).NotTo(ContainSubstring("unpkg.com"))
+			Expect(docsHTML).NotTo(ContainSubstring("cdn.jsdelivr.net"))
+
+			assetResponse := authenticatedGet(client, baseURL+"/docs/swagger-ui.css")
+			Expect(assetResponse.StatusCode).To(Equal(http.StatusOK))
+			Expect(assetResponse.Header.Get("Content-Type")).To(ContainSubstring("text/css"))
+
+			_, err = io.Copy(io.Discard, assetResponse.Body)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(assetResponse.Body.Close()).To(Succeed())
+
+			bundleResponse := authenticatedGet(client, baseURL+"/docs/swagger-ui-bundle.js")
+			Expect(bundleResponse.StatusCode).To(Equal(http.StatusOK))
+			Expect(bundleResponse.Header.Get("Content-Type")).To(ContainSubstring("javascript"))
+
+			_, err = io.Copy(io.Discard, bundleResponse.Body)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(bundleResponse.Body.Close()).To(Succeed())
 
 			cancel()
 			Eventually(errCh, 3*time.Second).Should(Receive(BeNil()))

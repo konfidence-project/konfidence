@@ -10,6 +10,7 @@ const active: StageVersion = {
   stageGeneration: 1,
   status: "Ready",
   vector: "registry.example.com/payments:1.0.0",
+  vectorDeploymentId: "dev-api-v1",
 };
 const stage: Stage = {
   activeStageVersion: active,
@@ -43,7 +44,12 @@ const scenarios: Record<string, Stage> = {
   pending: {
     ...stage,
     activeStageVersion: undefined,
-    targetStageVersion: { ...active, id: "new", status: "PendingDeployment" },
+    targetStageVersion: {
+      ...active,
+      id: "new",
+      status: "PendingDeployment",
+      vectorDeploymentId: null,
+    },
   },
 };
 

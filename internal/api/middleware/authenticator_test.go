@@ -384,3 +384,141 @@ var _ = Describe("Bearer authentication", func() {
 		Expect(nextCalled).To(BeFalse())
 	})
 })
+
+var _ = Describe("Required session middleware", func() {
+	var (
+		store   *testSessionStore
+		handler http.Handler
+	)
+
+	newHandler := func(store session.Store, cfg config.Parsed) http.Handler {
+		GinkgoHelper()
+
+		return middleware.RequireSession(slog.New(slog.NewTextHandler(io.Discard, nil)),
+			store, cfg)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}))
+	}
+
+	BeforeEach(func() {
+		store = &testSessionStore{
+			sessions: map[string]*session.Session{
+				"valid-session": {
+					Context: session.Context{
+						ID: "valid-session",
+					},
+				},
+			},
+		}
+		handler = newHandler(store, sessionConfig())
+	})
+
+	It("rejects a request without a session cookie", func() {
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, "/docs/", nil)
+
+		handler.ServeHTTP(response, request)
+
+		Expect(response.Code).To(Equal(http.StatusUnauthorized))
+		Expect(response.Header().Get("Content-Type")).To(Equal("application/json"))
+		Expect(store.getCalls).To(BeZero())
+	})
+
+	It("rejects a differently named session cookie", func() {
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, "/docs/openapi.json", nil)
+		request.AddCookie(&http.Cookie{
+			Name:  "unknown-session",
+			Value: "valid-session",
+		})
+
+		handler.ServeHTTP(response, request)
+		Expect(response.Code).To(Equal(http.StatusUnauthorized))
+		Expect(store.getCalls).To(BeZero())
+	})
+
+	It("rejects an unknown session", func() {
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, "/docs/", nil)
+		request.AddCookie(&http.Cookie{
+			Name:  "session",
+			Value: "unknown-session",
+		})
+
+		handler.ServeHTTP(response, request)
+
+		Expect(response.Code).To(Equal(http.StatusUnauthorized))
+		Expect(store.getCalls).To(Equal(1))
+		Expect(store.deletedIDs).To(Equal([]string{"unknown-session"}))
+	})
+
+	It("rejects an expired session when offline access is enabled", func() {
+		cfg := sessionConfig()
+		cfg.OIDC.Scopes = []string{"openid", "offline_access"}
+
+		store := &testSessionStore{
+			sessions: map[string]*session.Session{
+				"expired-session": {
+					Context: session.Context{
+						ID: "expired-session",
+					},
+					TokenExpiry: time.Now().Add(-time.Minute).Unix(),
+				},
+			},
+		}
+		handler := newHandler(store, cfg)
+
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, "/docs/", nil)
+		request.AddCookie(&http.Cookie{
+			Name:  "session",
+			Value: "expired-session",
+		})
+
+		handler.ServeHTTP(response, request)
+
+		Expect(response.Code).To(Equal(http.StatusUnauthorized))
+		Expect(store.deletedIDs).To(Equal([]string{"expired-session"}))
+	})
+
+	It("allows a valid session", func() {
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, "/docs/", nil)
+		request.AddCookie(&http.Cookie{
+			Name:  "session",
+			Value: "valid-session",
+		})
+
+		handler.ServeHTTP(response, request)
+
+		Expect(response.Code).To(Equal(http.StatusNoContent))
+		Expect(store.getCalls).To(Equal(1))
+		Expect(store.deletedIDs).To(BeEmpty())
+	})
+
+	It("does not accept bearer authentication instead of a session", func() {
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, "/docs/", nil)
+		request.Header.Set("Authorization", "Bearer workload-token")
+
+		handler.ServeHTTP(response, request)
+
+		Expect(response.Code).To(Equal(http.StatusUnauthorized))
+		Expect(store.getCalls).To(BeZero())
+	})
+
+	It("does not fall back to a session when authorization is supplied", func() {
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, "/docs/", nil)
+		request.Header.Set("Authorization", "Bearer workload-token")
+		request.AddCookie(&http.Cookie{
+			Name:  "session",
+			Value: "valid-session",
+		})
+
+		handler.ServeHTTP(response, request)
+
+		Expect(response.Code).To(Equal(http.StatusUnauthorized))
+		Expect(store.getCalls).To(BeZero())
+	})
+})

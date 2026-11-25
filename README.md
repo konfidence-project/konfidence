@@ -71,7 +71,7 @@ pnpm install
 pnpm ui:dev:mock
 ```
 
-This starts the dashboard and the OpenAPI-validated mock server together. The dashboard calls the mock API directly at `http://127.0.0.1:8091/api`. To develop against another API, set `VITE_KONFIDENCE_API_BASE_URL` to its public API base URL before running `pnpm ui:dev`.
+This starts the dashboard and the OpenAPI-validated mock server together. The dashboard calls the mock API directly at `http://127.0.0.1:8091/api`. To develop against another API, set `VITE_KONFIDENCE_API_BASE_URL` to its public server URL without the `/api` path or a trailing slash before running `pnpm ui:dev`.
 
 The design system in `packages/konfidence-design-system` is a workspace package that the dashboard imports from source, so changes to it show up live in the same development server.
 
@@ -105,6 +105,26 @@ pnpm ui:start
 The preview server is intended for checking the root page. To exercise production SPA fallback behavior, serve the build through the API with `go run ./cmd/api --ui-asset-path=apps/konfidence-ui/build`.
 
 Production releases include the static SPA in the API image. The API serves the dashboard and `/api/v1` from the same origin; set `API_UI_ASSET_PATH` when running an API binary with an external dashboard build directory.
+
+### API explorer
+
+The API server exposes interactive Swagger documentation from the configured
+API origin:
+
+- `/docs/` serves the Swagger UI API explorer.
+- `/docs/openapi.json` serves the OpenAPI specification embedded in the
+  running API binary.
+
+The embedded specification is generated from `api/openapi.yaml`, so it
+always describes the version of the API binary serving it. Swagger UI
+assets are also embedded in the API binary and do not require an external
+CDN.
+
+Open the explorer from the **API Explorer** link in the authenticated
+dashboard. Its URL is built from `VITE_KONFIDENCE_API_BASE_URL`, allowing the
+dashboard and API to use different origins. The explorer, embedded specification,
+and Swagger UI assets require a valid `kden-session`; unauthenticated requests
+receive `401 Unauthorized`.
 
 ### Typed API client
 

@@ -14,22 +14,26 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/handler"
 	"github.com/konfidence-project/konfidence/internal/api/middleware"
+	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/api/ui"
+	"github.com/swaggest/swgui"
+	"github.com/swaggest/swgui/v5emb"
 	"golang.org/x/sync/errgroup"
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
 )
 
 // Server wraps an http.Server with graceful shutdown support.
 type Server struct {
-	cfg     config.Parsed
-	logger  *slog.Logger
-	handler http.Handler
+	cfg          config.Parsed
+	logger       *slog.Logger
+	handler      http.Handler
+	authenticate func(http.Handler) http.Handler
 }
 
 // New creates a Server from validated config and an http.Handler. Signal
 // handling belongs in the caller (cmd layer).
-func New(cfg config.Parsed, logger *slog.Logger, apiHandler http.Handler) *Server {
-	return &Server{cfg: cfg, logger: logger, handler: apiHandler}
+func New(cfg config.Parsed, logger *slog.Logger, apiHandler http.Handler, authenticate func(http.Handler) http.Handler) *Server {
+	return &Server{cfg: cfg, logger: logger, handler: apiHandler, authenticate: authenticate}
 }
 
 // ListenAndServe starts the HTTP server and blocks until the context is
@@ -145,6 +149,20 @@ func (s *Server) ListenAndServe(ctx context.Context, onAddr ...func(string)) err
 }
 
 func (s *Server) router() (http.Handler, error) {
+	specJSON, err := openapi.GetSpecJSON()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load embedded OpenAPI specification: %w", err)
+	}
+
+	docsHandler := v5emb.NewHandlerWithConfig(swgui.Config{
+		Title:       "Konfidence API",
+		SwaggerJSON: "/docs/openapi.json",
+		BasePath:    "/docs/",
+		SettingsUI: map[string]string{
+			"withCredentials": "true",
+		},
+	})
+
 	r := chi.NewRouter()
 	r.Use(middleware.Recovery(s.logger))
 	r.Use(middleware.Logging(s.logger))
@@ -152,6 +170,16 @@ func (s *Server) router() (http.Handler, error) {
 	r.Method(http.MethodGet, "/readyz", middleware.Handle(s.logger, handler.Readyz))
 	r.Handle("/api", s.handler)
 	r.Handle("/api/*", s.handler)
+
+	docs := r.With(s.authenticate)
+	docs.Get("/docs", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/docs/", http.StatusPermanentRedirect)
+	})
+	docs.Get("/docs/openapi.json", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(specJSON)
+	})
+	docs.Handle("/docs/*", docsHandler)
 
 	if s.cfg.Server.UIAssetPath != "" {
 		uiHandler, err := ui.New(os.DirFS(s.cfg.Server.UIAssetPath))
