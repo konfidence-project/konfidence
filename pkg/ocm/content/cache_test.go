@@ -244,6 +244,24 @@ var _ = Describe("Caching OCM content reader", func() {
 		Entry("alias ref past the TTL is refetched for artifacts", artifactContent, aliasRef, testTagTTL+time.Second, int64(2)),
 	)
 
+	DescribeTable("tagTTL of zero disables caching of floating tags but still caches pinned refs",
+		func(ct contentType, ref string, expectedCalls int64) {
+			r, err := NewCachingReader(mockReader, testCacheSize, 0)
+			Expect(err).ToNot(HaveOccurred())
+			cache := r.(*cachingReader)
+
+			Expect(get(ctx, ct, cache, ref)).To(Succeed())
+			Expect(get(ctx, ct, cache, ref)).To(Succeed())
+			Expect(callCount(ct, mockReader)).To(Equal(expectedCalls))
+		},
+		Entry("alias ref is refetched every time for vectors", vectorContent, aliasRef, int64(2)),
+		Entry("alias ref is refetched every time for artifacts", artifactContent, aliasRef, int64(2)),
+		Entry("semver ref is still cached for vectors", vectorContent, semverRef, int64(1)),
+		Entry("semver ref is still cached for artifacts", artifactContent, semverRef, int64(1)),
+		Entry("digest-pinned ref is still cached for vectors", vectorContent, digestRef, int64(1)),
+		Entry("digest-pinned ref is still cached for artifacts", artifactContent, digestRef, int64(1)),
+	)
+
 	DescribeTable("inner reader is called again for an entry evicted under size pressure",
 		func(ct contentType) {
 			r, err := NewCachingReader(mockReader, 2, testTagTTL)

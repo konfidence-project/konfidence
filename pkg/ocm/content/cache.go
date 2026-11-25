@@ -60,7 +60,9 @@ func (c *cachingReader) GetVectorContent(ctx context.Context, rawOcmRef string) 
 		if err != nil {
 			return VectorContent{}, err
 		}
-		c.vectorCache.Add(rawOcmRef, vectorEntry{val: val, expiresAt: c.expiryFor(rawOcmRef)})
+		if expiresAt, shouldCache := c.cacheDecision(rawOcmRef); shouldCache {
+			c.vectorCache.Add(rawOcmRef, vectorEntry{val: val, expiresAt: expiresAt})
+		}
 		return val, nil
 	})
 	if err != nil {
@@ -79,7 +81,9 @@ func (c *cachingReader) GetArtifactContent(ctx context.Context, rawOcmRef string
 		if err != nil {
 			return ArtifactContent{}, err
 		}
-		c.artifactCache.Add(rawOcmRef, artifactEntry{val: val, expiresAt: c.expiryFor(rawOcmRef)})
+		if expiresAt, shouldCache := c.cacheDecision(rawOcmRef); shouldCache {
+			c.artifactCache.Add(rawOcmRef, artifactEntry{val: val, expiresAt: expiresAt})
+		}
 		return val, nil
 	})
 	if err != nil {
@@ -92,10 +96,13 @@ func (c *cachingReader) isExpired(expiresAt time.Time) bool {
 	return !expiresAt.IsZero() && expiresAt.Before(c.clock())
 }
 
-func (c *cachingReader) expiryFor(rawOcmRef string) time.Time {
+func (c *cachingReader) cacheDecision(rawOcmRef string) (expiresAt time.Time, shouldCache bool) {
 	parsed, err := kompref.Parse(rawOcmRef)
 	if err == nil && parsed != nil && (parsed.Digest != "" || kompref.IsSemver(parsed.Version)) {
-		return time.Time{}
+		return time.Time{}, true
 	}
-	return c.clock().Add(c.tagTTL)
+	if c.tagTTL <= 0 {
+		return time.Time{}, false
+	}
+	return c.clock().Add(c.tagTTL), true
 }
