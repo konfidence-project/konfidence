@@ -2,15 +2,30 @@ name: Release PR
 on:
   push:
     branches: [main]
+  pull_request:
+    types: [closed]
+    branches: [main]
 permissions:
   contents: read
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Keep ordinary pushes/PR closures from replacing a queued release.
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ github.event.pull_request.head.label || 'main' }}
   cancel-in-progress: false
 jobs:
+  update-release-pr:
+    name: Update Release PR
+    if: github.event_name == 'push'
+    uses: konfidence-project/.github/.github/workflows/release-pr.yaml@8e03fc5ecfd62cbec97f3462401ee3232277d55b # candidate v5; re-pin after release
+    secrets:
+      KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
   release-please:
-    name: Release PR
-    uses: konfidence-project/.github/.github/workflows/release-please.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
+    name: Create Release
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.labels.*.name, 'autorelease: pending')
+    uses: konfidence-project/.github/.github/workflows/release-please.yaml@8e03fc5ecfd62cbec97f3462401ee3232277d55b # candidate v5; re-pin after release
     secrets:
       KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
   release:
@@ -24,7 +39,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: konfidence-project/.github/.github/workflows/goreleaser.yaml@22e69a2a9cd4fc6a9e160cc0008a40e0106abf22 # protected release environment
+    uses: konfidence-project/.github/.github/workflows/goreleaser.yaml@8e03fc5ecfd62cbec97f3462401ee3232277d55b # candidate v5; re-pin after release
     with:
       mode: release
       snapshot-tag: ${{ needs.release-please.outputs.tag_name }}
@@ -35,7 +50,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    uses: konfidence-project/.github/.github/workflows/publish-helm-charts.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
+    uses: konfidence-project/.github/.github/workflows/publish-helm-charts.yaml@8e03fc5ecfd62cbec97f3462401ee3232277d55b # candidate v5; re-pin after release
     with:
       version: ${{ needs.release-please.outputs.tag_name }}
       charts: charts/konfidence
