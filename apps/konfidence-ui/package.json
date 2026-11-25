@@ -36,7 +36,7 @@
     "@skeletonlabs/skeleton-svelte": "^5.0.4",
     "@ui5/webcomponents": "^2.28.1",
     "@ui5/webcomponents-icons": "^2.28.1",
-    "@xyflow/svelte": "^1.7.1",
+    "@xyflow/svelte": "^2.0.2",
     "mode-watcher": "^1.1.0",
     "runed": "0.38.0",
     "svelte-tiny-query": "^2.2.0",
