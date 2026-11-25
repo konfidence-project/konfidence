@@ -5,9 +5,12 @@ package ocm
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	"github.com/konfidence-project/konfidence/pkg/observability"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	"github.com/konfidence-project/konfidence/pkg/ocm/util"
@@ -26,6 +29,7 @@ type Adapter struct {
 	verifier                   crypto.Verifier
 	resolver                   credentials.Resolver
 	vectorSpecs, artifactSpecs []crypto.SignatureSpec
+	metrics                    *observability.Metrics
 }
 
 var _ controller.VectorOcmPort = (*Adapter)(nil)
@@ -38,6 +42,7 @@ func NewAdapter(
 	resolver credentials.Resolver,
 	verifier crypto.Verifier,
 	vectorSpecs, artifactSpecs []crypto.SignatureSpec,
+	metrics *observability.Metrics,
 ) (Adapter, error) {
 	ocmClient, err := pkgocm.NewOciClientBuilder().
 		WithLogger(ctrl.Log).
@@ -54,6 +59,7 @@ func NewAdapter(
 		resolver:      resolver,
 		vectorSpecs:   vectorSpecs,
 		artifactSpecs: artifactSpecs,
+		metrics:       metrics,
 	}, nil
 }
 
@@ -62,24 +68,41 @@ func NewAdapter(
 // vector/artifact spec slices make every Verify call a no-op.
 func NewAdapterWithClient(client pkgocm.Client) Adapter {
 	verifier, _ := crypto.NewVerifierBuilder().Build()
-	return Adapter{client: client, verifier: verifier}
+	return Adapter{client: client, verifier: verifier, metrics: nil}
 }
 
 const (
 	konfidenceResourceTypeArtifactManifest     = "cloud.konfidence.artifact.manifest"
 	konfidenceResourceTypeArtifactTaskManifest = "cloud.konfidence.artifact.task.manifest"
+
+	resourceClassVectorConfig         = "vector_config"
+	resourceClassArtifactManifest     = "artifact_manifest"
+	resourceClassArtifactTaskManifest = "artifact_task_manifest"
 )
 
-func (a Adapter) GetVectorDescriptor(ctx context.Context, ref compref.Ref) (controller.VectorDescriptor, error) {
+func (a Adapter) GetVectorDescriptor(ctx context.Context, ref compref.Ref) (result controller.VectorDescriptor, err error) {
+	started := time.Now()
 	descriptor, err := a.client.Get(ctx, ref)
+	a.metrics.ObserveDescriptorRequest(observability.ConsumerVectorDeployment, "vector", classifyError(err), time.Since(started))
 	if err != nil {
 		return controller.VectorDescriptor{},
 			fmt.Errorf("unable to get descriptor for component %q version %q: %w", ref.Component, ref.Version, err)
 	}
 
-	if err := a.verifier.Verify(ctx, a.resolver, a.vectorSpecs, []*descruntime.Descriptor{&descriptor}); err != nil {
-		return controller.VectorDescriptor{}, permanent(konfidence.VectorDeploymentStalledReasonSignatureVerificationFailed,
-			fmt.Errorf("unable to verify ocm descriptor for reference (%s): %w", ref.String(), err))
+	verifyErr := a.verifier.Verify(ctx, a.resolver, a.vectorSpecs, []*descruntime.Descriptor{&descriptor})
+	a.metrics.ObserveSignatureRequest(observability.ConsumerVectorDeployment, "vector", verificationResult(a.vectorSpecs, verifyErr))
+	if verifyErr != nil {
+		return controller.VectorDescriptor{}, permanent(
+			konfidence.VectorDeploymentStalledReasonSignatureVerificationFailed,
+			fmt.Errorf("unable to verify ocm descriptor for reference (%s): %w", ref.String(), verifyErr),
+		)
+	}
+
+	vectorConfigResourceCount := 0
+	for i := range descriptor.Component.Resources {
+		if descriptor.Component.Resources[i].Name == util.KonfidenceResourceNameVectorConfig {
+			vectorConfigResourceCount++
+		}
 	}
 
 	// Extract the optional, singleton vector-scoped configuration resource and strip it from the descriptor before V2
@@ -87,9 +110,13 @@ func (a Adapter) GetVectorDescriptor(ctx context.Context, ref compref.Ref) (cont
 	// re-read from the persisted JSON, so removing it keeps the V2 representation clean and avoids serialization
 	// problems for access types that may not be wired into the runtime registry of every consumer (e.g. tests).
 	vectorConfig, prunedResources, err := util.ExtractVectorConfigResource(ctx, a.client, ref, descriptor.Component.Resources)
+	if vectorConfigResourceCount == 1 {
+		a.metrics.ObserveLocalResourceRead(observability.ConsumerVectorDeployment, resourceClassVectorConfig, classifyError(err), len(vectorConfig))
+	}
 	if err != nil {
 		return controller.VectorDescriptor{}, err
 	}
+
 	descriptor.Component.Resources = prunedResources
 
 	// Convert runtime descriptor to v2 and then marshal to JSON.
@@ -123,20 +150,30 @@ func (a Adapter) GetVectorDescriptor(ctx context.Context, ref compref.Ref) (cont
 	}, nil
 }
 
+func (a Adapter) readLocalResource(ctx context.Context, ref compref.Ref, resource *descruntime.Resource, class string) ([]byte, error) {
+	data, err := util.GetLocalResourceBlob(ctx, a.client, ref, resource)
+	a.metrics.ObserveLocalResourceRead(observability.ConsumerVectorDeployment, class, classifyError(err), len(data))
+	return data, err
+}
+
 // GetArtifactManifestByReference fetches the artifact manifest for the given artifact reference.
-func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref.Ref) (controller.ArtifactManifest, error) {
+func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref.Ref) (result controller.ArtifactManifest, err error) {
+	started := time.Now()
 	descriptor, err := a.client.Get(ctx, ref)
+	a.metrics.ObserveDescriptorRequest(observability.ConsumerVectorDeployment, "artifact", classifyError(err), time.Since(started))
 	if err != nil {
 		return controller.ArtifactManifest{}, fmt.Errorf("failed to fetch artifact descriptor for %s: %w", ref.String(), err)
 	}
 
-	if err := a.verifier.Verify(ctx, a.resolver, a.artifactSpecs, []*descruntime.Descriptor{&descriptor}); err != nil {
+	verifyErr := a.verifier.Verify(ctx, a.resolver, a.artifactSpecs, []*descruntime.Descriptor{&descriptor})
+	a.metrics.ObserveSignatureRequest(observability.ConsumerVectorDeployment, "artifact", verificationResult(a.artifactSpecs, verifyErr))
+	if verifyErr != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return controller.ArtifactManifest{}, ctxErr
 		}
 
 		return controller.ArtifactManifest{}, permanent(konfidence.VectorDeploymentStalledReasonSignatureVerificationFailed,
-			fmt.Errorf("unable to verify ocm descriptor for reference (%s): %w", ref.String(), err))
+			fmt.Errorf("unable to verify ocm descriptor for reference (%s): %w", ref.String(), verifyErr))
 	}
 
 	var konfidenceArtifactManifest *controller.ArtifactManifest
@@ -161,7 +198,7 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 
 		switch resource.Type {
 		case konfidenceResourceTypeArtifactManifest:
-			data, err := util.GetLocalResourceBlob(ctx, a.client, ref, resource)
+			data, err := a.readLocalResource(ctx, ref, resource, resourceClassArtifactManifest)
 			if err != nil {
 				return controller.ArtifactManifest{}, fmt.Errorf("failed to get manifest blob for resource %s in component %s: %w", resource.Name, ref.String(), err)
 			}
@@ -181,7 +218,7 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 			}
 
 		case konfidenceResourceTypeArtifactTaskManifest:
-			data, err := util.GetLocalResourceBlob(ctx, a.client, ref, resource)
+			data, err := a.readLocalResource(ctx, ref, resource, resourceClassArtifactTaskManifest)
 			if err != nil {
 				return controller.ArtifactManifest{}, fmt.Errorf("failed to get task manifest blob for resource %s in component %s: %w", resource.Name, ref.String(), err)
 			}
@@ -257,4 +294,31 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 
 func permanent(reason string, err error) error {
 	return &controller.PermanentError{Reason: reason, Err: err}
+}
+
+func classifyError(err error) string {
+	switch {
+	case err == nil:
+		return "success"
+	case errors.Is(err, context.Canceled):
+		return "canceled"
+	case errors.Is(err, context.DeadlineExceeded):
+		return "timeout"
+	case errors.Is(err, pkgocm.ErrNotFound):
+		return "not_found"
+	case errors.Is(err, pkgocm.ErrInvalidComponentReference):
+		return "invalid_reference"
+	default:
+		return "error"
+	}
+}
+
+func verificationResult(specs []crypto.SignatureSpec, err error) string {
+	if len(specs) == 0 {
+		return "skipped"
+	}
+	if err != nil {
+		return "failure"
+	}
+	return "success"
 }

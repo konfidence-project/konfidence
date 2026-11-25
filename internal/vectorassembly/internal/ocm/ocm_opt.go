@@ -1,6 +1,7 @@
 package ocm
 
 import (
+	"github.com/konfidence-project/konfidence/pkg/observability"
 	ocmcredentials "ocm.software/open-component-model/bindings/go/credentials"
 
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
@@ -53,5 +54,11 @@ func WithVectorVerifySpecs(specs []crypto.SignatureSpec) AdapterOption {
 func WithArtifactVerifySpecs(specs []crypto.SignatureSpec) AdapterOption {
 	return func(a *Adapter) {
 		a.artifactSpecs = specs
+	}
+}
+
+func WithMetrics(metrics *observability.Metrics) AdapterOption {
+	return func(a *Adapter) {
+		a.metrics = metrics
 	}
 }

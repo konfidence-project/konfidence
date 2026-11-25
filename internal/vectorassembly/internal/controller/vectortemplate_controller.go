@@ -17,6 +17,7 @@ import (
 	"github.com/konfidence-project/konfidence/pkg/collection"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"github.com/konfidence-project/konfidence/pkg/jsonschema"
+	"github.com/konfidence-project/konfidence/pkg/observability"
 	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	"github.com/konfidence-project/konfidence/pkg/ocm/credentials"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
@@ -69,6 +70,7 @@ type VectorTemplateReconciler struct {
 	VersionGenerator     vector.VersionGenerator
 	jobs                 *jobRegistry
 	assemblyPollInterval time.Duration
+	Metrics              *observability.Metrics
 }
 
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectortemplates,verbs=get;list;watch
@@ -436,8 +438,10 @@ func (r *VectorTemplateReconciler) resolveBaseRef(ctx context.Context, vt *konfi
 func (r *VectorTemplateReconciler) getVectorCached(ctx context.Context, adapter vector.OcmPort, ref compref.Ref) (vector.Vector, error) {
 	key := ref.String()
 	if v, ok := r.VectorCache.Get(key); ok {
+		r.Metrics.ObserveVectorCacheLookup(observability.CacheResultHit)
 		return v.Clone(), nil
 	}
+	r.Metrics.ObserveVectorCacheLookup(observability.CacheResultMiss)
 	v, err := adapter.GetVector(ctx, ref)
 	if err != nil {
 		return vector.Vector{}, err
@@ -564,6 +568,7 @@ func NewVectorTemplateReconciler(
 	log logr.Logger,
 	vectorCache *lru.Cache[string, vector.Vector],
 	versionGenerator vector.VersionGenerator,
+	metrics *observability.Metrics,
 ) *VectorTemplateReconciler {
 	return &VectorTemplateReconciler{
 		Client:               mgr.GetClient(),
@@ -575,6 +580,7 @@ func NewVectorTemplateReconciler(
 		VersionGenerator:     versionGenerator,
 		jobs:                 newJobRegistry(),
 		assemblyPollInterval: defaultAssemblyPollInterval,
+		Metrics:              metrics,
 	}
 }
 
@@ -606,6 +612,7 @@ func (r *VectorTemplateReconciler) buildAdapter(ctx context.Context, vt *konfide
 		vectorocm.WithVectorVerifySpecs(crypto.SpecsFromVerify(vt.Spec.VerifyVector)),
 		vectorocm.WithArtifactVerifySpecs(crypto.SpecsFromVerify(vt.Spec.VerifyArtifacts)),
 		vectorocm.WithVectorSigner(signer),
+		vectorocm.WithMetrics(r.Metrics),
 	), nil
 }
 

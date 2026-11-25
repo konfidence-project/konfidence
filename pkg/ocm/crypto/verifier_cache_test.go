@@ -2,13 +2,17 @@ package crypto
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync/atomic"
 	"time"
 
+	"github.com/konfidence-project/konfidence/pkg/observability"
+	metrictest "github.com/konfidence-project/konfidence/pkg/testutil/metrics"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"ocm.software/open-component-model/bindings/go/credentials"
 	ocm "ocm.software/open-component-model/bindings/go/descriptor/runtime"
@@ -317,6 +321,92 @@ var _ = Describe("CachingVerifier", func() {
 		callsBefore := stub.calls.Load()
 		Expect(cache.Verify(context.Background(), nil, specs, []*ocm.Descriptor{good1, good2})).To(Succeed())
 		Expect(stub.calls.Load()).To(Equal(callsBefore), "good cells served from cache — not re-verified")
+	})
+
+	It("records one miss followed by one hit", func() {
+		promRegistry := prometheus.NewPedanticRegistry()
+		metrics, err := observability.New(promRegistry)
+		Expect(err).NotTo(HaveOccurred())
+
+		stub := newStub(nil)
+		cache := newCachingVerifier(stub, testCacheSize, testCacheTTL, withCachingVerifierMetrics(metrics))
+
+		desc := descWith(sig("s1", "abc"))
+
+		Expect(cache.Verify(context.Background(), nil, specs, []*ocm.Descriptor{desc})).To(Succeed())
+		Expect(cache.Verify(context.Background(), nil, specs, []*ocm.Descriptor{desc})).To(Succeed())
+		Expect(stub.calls.Load()).To(Equal(int64(1)))
+
+		misses, err := metrictest.Value(promRegistry, "konfidence_ocm_signature_cache_lookups_total",
+			prometheus.Labels{
+				"result": observability.CacheResultMiss,
+			},
+		)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(misses).To(Equal(float64(1)))
+
+		hits, err := metrictest.Value(promRegistry, "konfidence_ocm_signature_cache_lookups_total",
+			prometheus.Labels{
+				"result": observability.CacheResultHit,
+			},
+		)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(hits).To(Equal(float64(1)))
+	})
+
+	It("does not record a lookup when the signature is absent", func() {
+		promRegistry := prometheus.NewPedanticRegistry()
+		metrics, err := observability.New(promRegistry)
+		Expect(err).NotTo(HaveOccurred())
+
+		stub := newStub(nil)
+		cache := newCachingVerifier(stub, testCacheSize, testCacheTTL, withCachingVerifierMetrics(metrics))
+
+		Expect(cache.Verify(context.Background(), nil, specs, []*ocm.Descriptor{{}})).To(Succeed())
+
+		misses, err := metrictest.Value(promRegistry, "konfidence_ocm_signature_cache_lookups_total",
+			prometheus.Labels{
+				"result": observability.CacheResultMiss,
+			},
+		)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(misses).To(BeZero())
+
+		hits, err := metrictest.Value(promRegistry, "konfidence_ocm_signature_cache_lookups_total",
+			prometheus.Labels{
+				"result": observability.CacheResultHit,
+			},
+		)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(hits).To(BeZero())
+	})
+
+	It("does not record a lookup when the digest precheck fails", func() {
+		promRegistry := prometheus.NewPedanticRegistry()
+		metrics, err := observability.New(promRegistry)
+		Expect(err).NotTo(HaveOccurred())
+
+		verifyDigestMatchesDescriptor = func(context.Context, *ocm.Descriptor, ocm.Signature, *slog.Logger) error {
+			return errors.New("digest mismatch")
+		}
+
+		stub := newStub(nil)
+		cache := newCachingVerifier(stub, testCacheSize, testCacheTTL, withCachingVerifierMetrics(metrics))
+
+		err = cache.Verify(context.Background(), nil, specs,
+			[]*ocm.Descriptor{
+				descWith(sig("s1", "abc")),
+			},
+		)
+		Expect(err).To(HaveOccurred())
+
+		misses, metricErr := metrictest.Value(promRegistry, "konfidence_ocm_signature_cache_lookups_total",
+			prometheus.Labels{
+				"result": observability.CacheResultMiss,
+			},
+		)
+		Expect(metricErr).NotTo(HaveOccurred())
+		Expect(misses).To(BeZero())
 	})
 })
 

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
@@ -14,11 +15,13 @@ import (
 	"github.com/konfidence-project/konfidence/internal/vectordeployment"
 	"github.com/konfidence-project/konfidence/internal/vectorpromotion"
 	pkgcmd "github.com/konfidence-project/konfidence/pkg/cmd"
+	"github.com/konfidence-project/konfidence/pkg/observability"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	"github.com/konfidence-project/konfidence/pkg/operator"
 	"github.com/spf13/cobra"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
@@ -72,6 +75,11 @@ func startOperator(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
+	operatorMetrics, err := observability.New(crmetrics.Registry)
+	if err != nil {
+		return fmt.Errorf("register operator metrics: %w", err)
+	}
+
 	// Build the one process-wide Verifier: ParallelVerifier (limiter) →
 	// CachingVerifier (LRU) → OCMVerifier (crypto). Every domain receives
 	// this exact instance via deps.Verifier — different reconcilers verifying
@@ -89,6 +97,7 @@ func startOperator(_ *cobra.Command, _ []string) error {
 		WithParallelism(limiter).
 		WithCache(1024, 30*time.Minute).
 		WithLogger(setupLog).
+		WithMetrics(operatorMetrics).
 		Build()
 	if err != nil {
 		setupLog.Error(err, "unable to build shared verifier")
@@ -101,6 +110,7 @@ func startOperator(_ *cobra.Command, _ []string) error {
 		Limiter:  limiter,
 		Verifier: sharedVerifier,
 		Shutdown: cancel,
+		Metrics:  operatorMetrics,
 	}
 
 	for _, domain := range domains {

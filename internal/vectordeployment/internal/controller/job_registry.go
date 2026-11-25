@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/konfidence-project/konfidence/pkg/observability"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
@@ -67,9 +68,10 @@ type jobRegistry struct {
 	now          func() time.Time
 	cancelParent context.CancelFunc
 	closed       bool
+	metrics      *observability.Metrics
 }
 
-func newJobRegistry() *jobRegistry {
+func newJobRegistry(metrics *observability.Metrics) *jobRegistry {
 	parentCtx, cancelParent := context.WithCancel(context.Background())
 	return &jobRegistry{
 		inflight: make(map[types.NamespacedName]*inflightJob),
@@ -81,6 +83,7 @@ func newJobRegistry() *jobRegistry {
 		now:          time.Now,
 		parentCtx:    parentCtx,
 		cancelParent: cancelParent,
+		metrics:      metrics,
 	}
 }
 
@@ -103,12 +106,22 @@ func (r *jobRegistry) launch(nn types.NamespacedName, generation int64, uid type
 		return false, 0
 	}
 
+	retrying := false
 	if retry, exists := r.retries[nn]; exists {
 		if !retry.matches(generation, uid, artifactReferences) {
+			reason := retry.invalidationReason(generation, uid, artifactReferences)
+			r.metrics.ObserveManifestInvalidation(reason)
 			r.clearRetryLocked(nn)
-		} else if retryAfter := retry.notBefore.Sub(r.now()); retryAfter > 0 {
-			r.mu.Unlock()
-			return false, retryAfter
+		} else {
+			if retryAfter := retry.notBefore.Sub(r.now()); retryAfter > 0 {
+				// No completed result is cached while the job is waiting for retry
+				// backoff, so this reconcile lookup is a cache miss.
+				r.metrics.ObserveManifestCacheLookup(observability.CacheResultMiss)
+				r.mu.Unlock()
+				return false, retryAfter
+			}
+
+			retrying = true
 		}
 	}
 
@@ -126,6 +139,12 @@ func (r *jobRegistry) launch(nn types.NamespacedName, generation int64, uid type
 
 	r.inflight[nn] = job
 	r.wg.Add(1)
+
+	r.metrics.ObserveManifestCacheLookup(observability.CacheResultMiss)
+	if retrying {
+		r.metrics.ObserveManifestRetry()
+	}
+
 	r.mu.Unlock()
 
 	go func() {
@@ -153,8 +172,13 @@ func (r *jobRegistry) completedResult(nn types.NamespacedName, job *inflightJob)
 	}
 
 	if job.cachedResult != nil {
+		r.metrics.ObserveManifestCacheLookup(observability.CacheResultHit)
 		return *job.cachedResult, true
 	}
+
+	// No completed result was cached before this lookup. This includes polls
+	// while the job is running and the poll that consumes its first result.
+	r.metrics.ObserveManifestCacheLookup(observability.CacheResultMiss)
 
 	select {
 	case result := <-job.result:
@@ -182,16 +206,23 @@ func (r *jobRegistry) completedResult(nn types.NamespacedName, job *inflightJob)
 	}
 }
 
-func (r *jobRegistry) remove(nn types.NamespacedName) {
+func (r *jobRegistry) remove(nn types.NamespacedName) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	removed := false
 	if job, exists := r.inflight[nn]; exists {
 		job.cancel()
 		delete(r.inflight, nn)
+		removed = true
+	}
+
+	if _, exists := r.retries[nn]; exists {
+		removed = true
 	}
 
 	r.clearRetryLocked(nn)
+	return removed
 }
 
 func (r *jobRegistry) clearRetryLocked(nn types.NamespacedName) {
@@ -223,4 +254,17 @@ func (r *jobRegistry) shutdown() {
 	clear(r.inflight)
 	clear(r.retries)
 	r.mu.Unlock()
+}
+
+func (i manifestJobIdentity) invalidationReason(generation int64, uid types.UID, artifactReferences []string) string {
+	switch {
+	case i.uid != uid:
+		return observability.ManifestInvalidationUIDChanged
+	case i.generation != generation:
+		return observability.ManifestInvalidationGenerationChanged
+	case !slices.Equal(i.artifactReferences, artifactReferences):
+		return observability.ManifestInvalidationReferencesChanged
+	default:
+		return ""
+	}
 }

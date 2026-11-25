@@ -7,10 +7,16 @@ import (
 
 	mocks2 "github.com/konfidence-project/konfidence/internal/vectorassembly/internal/ocm/mocks"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
+	"github.com/konfidence-project/konfidence/pkg/observability"
+	cryptopkg "github.com/konfidence-project/konfidence/pkg/ocm/crypto"
+	metrictest "github.com/konfidence-project/konfidence/pkg/testutil/metrics"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/mock/gomock"
 	norm "ocm.software/open-component-model/bindings/go/descriptor/normalisation/json/v4alpha1"
+	ocmdescriptor "ocm.software/open-component-model/bindings/go/descriptor/runtime"
+	"ocm.software/open-component-model/bindings/go/oci/compref"
 	"ocm.software/open-component-model/bindings/go/runtime"
 )
 
@@ -125,6 +131,125 @@ var _ = Describe("Adapter", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("unable to save ocm descriptor"))
 			Expect(errors.Is(err, saveErr)).To(BeTrue())
+		})
+	})
+
+	Describe("read metrics", func() {
+		var (
+			ctrl         *gomock.Controller
+			mockClient   *mocks2.MockClient
+			mockVerifier *mocks2.MockVerifier
+			registry     *prometheus.Registry
+			metrics      *observability.Metrics
+			adapter      Adapter
+			ref          compref.Ref
+		)
+
+		BeforeEach(func() {
+			ctrl = gomock.NewController(GinkgoT())
+			mockClient = mocks2.NewMockClient(ctrl)
+			mockVerifier = mocks2.NewMockVerifier(ctrl)
+
+			registry = prometheus.NewPedanticRegistry()
+
+			var err error
+			metrics, err = observability.New(registry)
+			Expect(err).NotTo(HaveOccurred())
+
+			ref = compref.Ref{
+				Component: "example.com/vector",
+				Version:   "1.0.0",
+			}
+
+			adapter = Adapter{
+				ocmClient: mockClient,
+				verifier:  mockVerifier,
+				vectorSpecs: []cryptopkg.SignatureSpec{
+					cryptopkg.DefaultSignatureSpec("signature", nil),
+				},
+				metrics: metrics,
+			}
+		})
+
+		AfterEach(func() {
+			ctrl.Finish()
+		})
+
+		It("records vector descriptor and signature success", func() {
+			descriptor := ocmdescriptor.Descriptor{}
+			mockClient.EXPECT().
+				Get(gomock.Any(), ref).
+				Return(descriptor, nil)
+
+			mockVerifier.EXPECT().
+				Verify(
+					gomock.Any(),
+					gomock.Any(),
+					adapter.vectorSpecs,
+					gomock.Any(),
+				).
+				Return(nil)
+
+			_, err := adapter.GetVector(context.Background(), ref)
+			Expect(err).NotTo(HaveOccurred())
+
+			descriptorCount, err := metrictest.Value(
+				registry,
+				"konfidence_ocm_descriptor_requests_total",
+				prometheus.Labels{
+					"consumer":        observability.ConsumerVectorAssembly,
+					"descriptor_kind": "vector",
+					"result":          observability.ResultSuccess,
+				},
+			)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(descriptorCount).To(Equal(float64(1)))
+
+			signatureCount, err := metrictest.Value(
+				registry,
+				"konfidence_ocm_signature_requests_total",
+				prometheus.Labels{
+					"consumer":        observability.ConsumerVectorAssembly,
+					"descriptor_kind": "vector",
+					"result":          observability.ResultSuccess,
+				},
+			)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(signatureCount).To(Equal(float64(1)))
+		})
+
+		It("records vector signature failure and preserves the error", func() {
+			descriptor := ocmdescriptor.Descriptor{}
+			verifyErr := errors.New("signature invalid")
+
+			mockClient.EXPECT().
+				Get(gomock.Any(), ref).
+				Return(descriptor, nil)
+
+			mockVerifier.EXPECT().
+				Verify(
+					gomock.Any(),
+					gomock.Any(),
+					adapter.vectorSpecs,
+					gomock.Any(),
+				).
+				Return(verifyErr)
+
+			_, err := adapter.GetVector(context.Background(), ref)
+			Expect(err).To(HaveOccurred())
+			Expect(errors.Is(err, verifyErr)).To(BeTrue())
+
+			value, err := metrictest.Value(
+				registry,
+				"konfidence_ocm_signature_requests_total",
+				prometheus.Labels{
+					"consumer":        observability.ConsumerVectorAssembly,
+					"descriptor_kind": "vector",
+					"result":          observability.ResultFailure,
+				},
+			)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(value).To(Equal(float64(1)))
 		})
 	})
 })

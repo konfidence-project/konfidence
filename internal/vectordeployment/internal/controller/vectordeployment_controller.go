@@ -14,6 +14,7 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/pkg/collection"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
+	"github.com/konfidence-project/konfidence/pkg/observability"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
@@ -55,6 +56,7 @@ type VectorDeploymentReconciler struct {
 	Scheme                                    *runtime.Scheme
 	Recorder                                  events.EventRecorder
 	OcmAdapter                                VectorOcmPort
+	Metrics                                   *observability.Metrics
 	jobs                                      *jobRegistry
 	MaxArtifactManifestDownloadsPerDeployment int
 	MaxGlobalArtifactManifestDownloads        int
@@ -103,7 +105,9 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	vectorDeployment := &konfidence.VectorDeployment{}
 	if err := r.Get(ctx, req.NamespacedName, vectorDeployment); err != nil {
 		if apierrors.IsNotFound(err) && r.jobs != nil {
-			r.jobs.remove(req.NamespacedName)
+			if r.jobs.remove(req.NamespacedName) {
+				r.Metrics.ObserveManifestInvalidation(observability.ManifestInvalidationDeleted)
+			}
 		}
 
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -304,6 +308,8 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 	for _, artifact := range artifacts {
 		artifactRef := artifact.Reference
 		artifactManifest := artifact.Manifest
+		reusePolicy := artifactReusePolicy(artifactManifest.AllowReuse)
+		created := false
 
 		var uid *string
 		if !artifactManifest.AllowReuse {
@@ -320,6 +326,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 
 		deploymentName, deploymentHash, err := ConstructArtifactDeploymentName(artifactRef.Component, artifactRef.Version, uid, collisionCount)
 		if err != nil {
+			r.Metrics.ObserveArtifactDeployment(reusePolicy, observability.ArtifactDeploymentResultError)
 			return false, fmt.Errorf("failed to construct artifact deployment name for %q: %w", artifactRef.String(), err)
 		}
 
@@ -329,6 +336,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 		if err != nil {
 			// if error is not NotFound then return error
 			if !apierrors.IsNotFound(err) {
+				r.Metrics.ObserveArtifactDeployment(reusePolicy, observability.ArtifactDeploymentResultError)
 				return false, fmt.Errorf("failed to get artifact deployment %q: %w", deploymentName, err)
 			}
 
@@ -336,8 +344,12 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 			artifactDeployment = r.constructArtifactDeployment(artifactRef, artifactManifest, vectorDeployment, deploymentName,
 				deploymentHash, uid, landscapeName)
 			if err := r.Create(ctx, artifactDeployment); err != nil {
+				r.Metrics.ObserveArtifactDeployment(reusePolicy, observability.ArtifactDeploymentResultError)
 				return false, fmt.Errorf("failed to create ArtifactDeployment resource %s: %w", deploymentName, err)
 			}
+
+			created = true
+			r.Metrics.ObserveArtifactDeployment(reusePolicy, observability.ArtifactDeploymentResultCreated)
 			msg := fmt.Sprintf("Created ArtifactDeployment %s for VectorDeployment %s", deploymentName, vectorDeployment.Name)
 			r.Recorder.Eventf(vectorDeployment, nil, corev1.EventTypeNormal, "ArtifactDeploymentCreated", "ArtifactDeploymentCreated", msg)
 			log.Info(msg)
@@ -348,6 +360,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 			gotComponent := artifactDeployment.Annotations[pkgctrl.ArtifactComponentAnnotation]
 			gotVersion := artifactDeployment.Annotations[pkgctrl.ArtifactVersionAnnotation]
 			if gotComponent != artifactRef.Component || gotVersion != artifactRef.Version {
+				r.Metrics.ObserveArtifactDeployment(reusePolicy, observability.ArtifactDeploymentResultCollision)
 				msg := fmt.Sprintf(
 					"ArtifactDeployment name %q collides: expected component %q version %q but found component %q version %q",
 					deploymentName, artifactRef.Component, artifactRef.Version, gotComponent, gotVersion)
@@ -399,19 +412,27 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 			}
 		}
 
+		ownerWasMissing := ownerRef == nil
 		if ownerRef == nil {
 			log.Info("Adding owner reference to existing artifact deployment", "vector", vectorDeployment.Spec.Vector, "name", artifactDeployment.Name)
 			if err := controllerutil.SetOwnerReference(vectorDeployment, artifactDeployment, r.Scheme); err != nil {
+				r.Metrics.ObserveArtifactDeployment(reusePolicy, observability.ArtifactDeploymentResultError)
 				return false, fmt.Errorf("unable to add vectorDeployment owner reference to artifactDeployment: %w", err)
 			}
 
 		} else {
 			log.Info("ArtifactDeployment already has owner reference", "vector", vectorDeployment.Spec.Vector, "name", artifactDeployment.Name)
 		}
-		if ownerRef == nil || labelsChanged {
+		if ownerWasMissing || labelsChanged {
 			if err := r.Update(ctx, artifactDeployment); err != nil {
+				r.Metrics.ObserveArtifactDeployment(reusePolicy, observability.ArtifactDeploymentResultError)
 				return false, fmt.Errorf("failed to update metadata for ArtifactDeployment %q: %w", artifactDeployment.Name, err)
 			}
+
+			if !created && ownerWasMissing {
+				r.Metrics.ObserveArtifactDeployment(reusePolicy, observability.ArtifactDeploymentResultReused)
+			}
+
 			r.Recorder.Eventf(vectorDeployment, nil, corev1.EventTypeNormal,
 				"ArtifactDeploymentUpdated", "ArtifactDeploymentUpdated",
 				fmt.Sprintf("Updated metadata for ArtifactDeployment %s", artifactDeployment.Name))
@@ -550,7 +571,7 @@ func (r *VectorDeploymentReconciler) SetupWithManager(mgr ctrl.Manager, controll
 		r.manifestDownloadTimeout = defaultArtifactManifestDownloadTimeout
 	}
 	if r.jobs == nil {
-		r.jobs = newJobRegistry()
+		r.jobs = newJobRegistry(r.Metrics)
 	}
 
 	if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
@@ -598,12 +619,10 @@ func (r *VectorDeploymentReconciler) constructArtifactDeployment(
 	}
 
 	return &konfidence.ArtifactDeployment{
-		ObjectMeta: ctrl.ObjectMeta{
-			Name:        deploymentName,
-			Namespace:   vectorDeployment.Namespace,
-			Annotations: ann,
-			Labels:      labels,
-		},
+		Name:        deploymentName,
+		Namespace:   vectorDeployment.Namespace,
+		Annotations: ann,
+		Labels:      labels,
 		Spec: konfidence.ArtifactDeploymentSpec{
 			ArtifactType:  artifactManifest.Type,
 			TaskManifests: taskManifests,
@@ -702,9 +721,10 @@ func (r *VectorDeploymentReconciler) ensureVectorDataConfigResolved(
 func (r *VectorDeploymentReconciler) resolveArtifactManifestsAsync(nn types.NamespacedName, generation int64,
 	uid types.UID, artifactReferences []compref.Ref) (artifactManifestResult, time.Duration) {
 	if len(artifactReferences) == 0 {
-		// Remove any registered job and retry state so an obsolete result cannot
-		// be applied later.
-		r.jobs.remove(nn)
+		// Remove any registered job and retry state so an obsolete result cannot be applied later.
+		if r.jobs.remove(nn) {
+			r.Metrics.ObserveManifestInvalidation(observability.ManifestInvalidationEmptyReferences)
+		}
 		return artifactManifestResult{}, 0
 	}
 
@@ -727,7 +747,11 @@ func (r *VectorDeploymentReconciler) resolveArtifactManifestsAsync(nn types.Name
 			"jobKey", nn.String(), "existingGeneration", job.generation, "requestedGeneration", generation,
 			"existingUID", string(job.uid), "requestedUID", string(uid),
 		)
-		r.jobs.remove(nn)
+
+		reason := job.invalidationReason(generation, uid, referenceKeys)
+		if r.jobs.remove(nn) {
+			r.Metrics.ObserveManifestInvalidation(reason)
+		}
 	}
 
 	// Do not capture storage owned by the current reconciliation after it returns.
@@ -777,6 +801,9 @@ func (r *VectorDeploymentReconciler) downloadArtifactManifests(ctx context.Conte
 			}
 			defer release()
 
+			r.Metrics.IncManifestDownloadsActive()
+			defer r.Metrics.DecManifestDownloadsActive()
+
 			downloadCtx, cancel := context.WithTimeout(poolCtx, r.manifestDownloadTimeout)
 			defer cancel()
 
@@ -825,4 +852,11 @@ func artifactReferenceKeys(references []compref.Ref) []string {
 		keys[i] = references[i].String()
 	}
 	return keys
+}
+
+func artifactReusePolicy(allowReuse bool) string {
+	if allowReuse {
+		return observability.ReusePolicyEnabled
+	}
+	return observability.ReusePolicyDisabled
 }
