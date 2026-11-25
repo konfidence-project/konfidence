@@ -15,7 +15,7 @@ jobs:
   update-release-pr:
     name: Update Release PR
     if: github.event_name == 'push'
-    uses: konfidence-project/.github/.github/workflows/release-pr.yaml@8e03fc5ecfd62cbec97f3462401ee3232277d55b # candidate v5; re-pin after release
+    uses: konfidence-project/.github/.github/workflows/release-pr.yaml@9891c53d7855f442c4e96a02b889b7cf2a8b9f79 # candidate v5; re-pin after release
     secrets:
       KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
   release-please:
