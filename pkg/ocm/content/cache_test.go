@@ -225,6 +225,92 @@ var _ = Describe("Caching OCM content reader", func() {
 		Expect(mockReader.artifactCalls.Load()).To(Equal(int64(1)))
 	})
 
+	It("lets a cancelled vector caller return without blocking the others sharing its fetch", func() {
+		mockReader.gate = make(chan struct{})
+		cache := newCache()
+
+		var runnerWg sync.WaitGroup
+		runnerWg.Add(1)
+		go func() {
+			defer runnerWg.Done()
+			vc, err := cache.GetVectorContent(ctx, semverRef)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(vc.Components).To(Equal(testVectorContent.Components))
+		}()
+
+		Eventually(mockReader.vectorCalls.Load).Should(Equal(int64(1)))
+
+		cancelCtx, cancel := context.WithCancel(ctx)
+		cancel()
+		cancelled := make(chan error, 1)
+		go func() {
+			_, err := cache.GetVectorContent(cancelCtx, semverRef)
+			cancelled <- err
+		}()
+		Eventually(cancelled).Should(Receive(MatchError(context.Canceled)))
+
+		var waitersWg sync.WaitGroup
+		const waiters = 2
+		waitersWg.Add(waiters)
+		for i := 0; i < waiters; i++ {
+			go func() {
+				defer waitersWg.Done()
+				vc, err := cache.GetVectorContent(ctx, semverRef)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(vc.Components).To(Equal(testVectorContent.Components))
+			}()
+		}
+
+		close(mockReader.gate)
+		runnerWg.Wait()
+		waitersWg.Wait()
+
+		Expect(mockReader.vectorCalls.Load()).To(Equal(int64(1)))
+	})
+
+	It("lets a cancelled artifact caller return without blocking the others sharing its fetch", func() {
+		mockReader.gate = make(chan struct{})
+		cache := newCache()
+
+		var runnerWg sync.WaitGroup
+		runnerWg.Add(1)
+		go func() {
+			defer runnerWg.Done()
+			ac, err := cache.GetArtifactContent(ctx, semverRef)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(ac).To(Equal(testArtifactContent))
+		}()
+
+		Eventually(mockReader.artifactCalls.Load).Should(Equal(int64(1)))
+
+		cancelCtx, cancel := context.WithCancel(ctx)
+		cancel()
+		cancelled := make(chan error, 1)
+		go func() {
+			_, err := cache.GetArtifactContent(cancelCtx, semverRef)
+			cancelled <- err
+		}()
+		Eventually(cancelled).Should(Receive(MatchError(context.Canceled)))
+
+		var waitersWg sync.WaitGroup
+		const waiters = 2
+		waitersWg.Add(waiters)
+		for i := 0; i < waiters; i++ {
+			go func() {
+				defer waitersWg.Done()
+				ac, err := cache.GetArtifactContent(ctx, semverRef)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(ac).To(Equal(testArtifactContent))
+			}()
+		}
+
+		close(mockReader.gate)
+		runnerWg.Wait()
+		waitersWg.Wait()
+
+		Expect(mockReader.artifactCalls.Load()).To(Equal(int64(1)))
+	})
+
 	DescribeTable("cached ref entries lifetime",
 		func(ct contentType, ref string, advance time.Duration, expectedCalls int64) {
 			now := time.Now()

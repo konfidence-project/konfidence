@@ -55,8 +55,9 @@ func (c *cachingReader) GetVectorContent(ctx context.Context, rawOcmRef string) 
 		return entry.val, nil
 	}
 
-	res, err, _ := c.vectorGroup.Do(rawOcmRef, func() (any, error) {
-		val, err := c.inner.GetVectorContent(ctx, rawOcmRef)
+	ch := c.vectorGroup.DoChan(rawOcmRef, func() (any, error) {
+		fetchCtx := context.WithoutCancel(ctx)
+		val, err := c.inner.GetVectorContent(fetchCtx, rawOcmRef)
 		if err != nil {
 			return VectorContent{}, err
 		}
@@ -65,10 +66,16 @@ func (c *cachingReader) GetVectorContent(ctx context.Context, rawOcmRef string) 
 		}
 		return val, nil
 	})
-	if err != nil {
-		return VectorContent{}, err
+
+	select {
+	case res := <-ch:
+		if res.Err != nil {
+			return VectorContent{}, res.Err
+		}
+		return res.Val.(VectorContent), nil
+	case <-ctx.Done():
+		return VectorContent{}, ctx.Err()
 	}
-	return res.(VectorContent), nil
 }
 
 func (c *cachingReader) GetArtifactContent(ctx context.Context, rawOcmRef string) (ArtifactContent, error) {
@@ -76,8 +83,9 @@ func (c *cachingReader) GetArtifactContent(ctx context.Context, rawOcmRef string
 		return entry.val, nil
 	}
 
-	res, err, _ := c.artifactGroup.Do(rawOcmRef, func() (any, error) {
-		val, err := c.inner.GetArtifactContent(ctx, rawOcmRef)
+	ch := c.artifactGroup.DoChan(rawOcmRef, func() (any, error) {
+		fetchCtx := context.WithoutCancel(ctx)
+		val, err := c.inner.GetArtifactContent(fetchCtx, rawOcmRef)
 		if err != nil {
 			return ArtifactContent{}, err
 		}
@@ -86,10 +94,16 @@ func (c *cachingReader) GetArtifactContent(ctx context.Context, rawOcmRef string
 		}
 		return val, nil
 	})
-	if err != nil {
-		return ArtifactContent{}, err
+
+	select {
+	case res := <-ch:
+		if res.Err != nil {
+			return ArtifactContent{}, res.Err
+		}
+		return res.Val.(ArtifactContent), nil
+	case <-ctx.Done():
+		return ArtifactContent{}, ctx.Err()
 	}
-	return res.(ArtifactContent), nil
 }
 
 func (c *cachingReader) isExpired(expiresAt time.Time) bool {
