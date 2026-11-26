@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	lru "github.com/hashicorp/golang-lru/v2"
+	"github.com/konfidence-project/konfidence/pkg/observability"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -25,6 +26,7 @@ func Domain() operator.Domain {
 			return SetupControllers(deps.Mgr, Options{
 				Limiter:  deps.Limiter,
 				Verifier: deps.Verifier,
+				Metrics:  deps.Metrics,
 			})
 		},
 	}
@@ -37,6 +39,8 @@ type Options struct {
 
 	// Verifier is the shared process-wide OCM verifier. Required; usually from operator.Deps.Verifier.
 	Verifier crypto.Verifier
+
+	Metrics *observability.Metrics
 }
 
 // SetupControllers registers all vector assembly controllers with the given manager.
@@ -62,6 +66,7 @@ func SetupControllers(mgr ctrl.Manager, opts Options) error {
 		log,
 		vectorCache,
 		vector.TimestampVectorVersionGenerator,
+		opts.Metrics,
 	).SetupWithManager(mgr); err != nil {
 		return err
 	}

@@ -7,8 +7,11 @@ import (
 	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	"github.com/konfidence-project/konfidence/pkg/observability"
+	metrictest "github.com/konfidence-project/konfidence/pkg/testutil/metrics"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/prometheus/client_golang/prometheus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
@@ -49,16 +52,23 @@ func testManifest(ref compref.Ref) ArtifactManifest {
 	}
 }
 
-func newManifestTestReconciler(port VectorOcmPort, perDeployment, global int) *VectorDeploymentReconciler {
+func newManifestTestReconcilerWithMetrics(port VectorOcmPort, perDeployment, global int, metrics *observability.Metrics) *VectorDeploymentReconciler {
 	return &VectorDeploymentReconciler{
 		OcmAdapter: port,
-		jobs:       newJobRegistry(),
+		Metrics:    metrics,
+		jobs:       newJobRegistry(metrics),
 		MaxArtifactManifestDownloadsPerDeployment: perDeployment,
 		manifestPollInterval:                      defaultArtifactManifestPollInterval,
 		MaxGlobalArtifactManifestDownloads:        global,
 		manifestDownloadTimeout:                   time.Second,
-		manifestDownloadLimiter:                   newArtifactManifestDownloadLimiter(global),
+		manifestDownloadLimiter: newArtifactManifestDownloadLimiter(
+			global,
+		),
 	}
+}
+
+func newManifestTestReconciler(port VectorOcmPort, perDeployment, global int) *VectorDeploymentReconciler {
+	return newManifestTestReconcilerWithMetrics(port, perDeployment, global, nil)
 }
 
 func updatePeak(peak *atomic.Int32, current int32) {
@@ -569,17 +579,87 @@ var _ = Describe("Artifact manifest jobs", func() {
 			},
 		}
 
-		r := newManifestTestReconciler(port, 1, 1)
+		promRegistry := prometheus.NewPedanticRegistry()
+		metrics, err := observability.New(promRegistry)
+		Expect(err).NotTo(HaveOccurred())
 
+		r := newManifestTestReconcilerWithMetrics(port, 1, 1, metrics)
 		result := r.downloadArtifactManifests(context.Background(), []compref.Ref{ref})
 		Expect(result.err).To(HaveOccurred())
 		Expect(result.err.Error()).To(ContainSubstring("malformed registry content"))
 		Expect(result.err.Error()).To(ContainSubstring(ref.String()))
+		value, err := metrictest.Value(promRegistry, "konfidence_vectordeployment_manifest_downloads_active", nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(value).To(BeZero())
 
 		By("releasing the download slot after the panic")
 		result = r.downloadArtifactManifests(context.Background(), []compref.Ref{ref})
 		Expect(result.err).NotTo(HaveOccurred())
 		Expect(result.artifacts).To(HaveLen(1))
+		value, err = metrictest.Value(promRegistry, "konfidence_vectordeployment_manifest_downloads_active", nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(value).To(BeZero())
+	})
+
+	It("tracks only downloads holding a global slot", func() {
+		promRegistry := prometheus.NewPedanticRegistry()
+		metrics, err := observability.New(promRegistry)
+		Expect(err).NotTo(HaveOccurred())
+
+		release := make(chan struct{})
+		var calls atomic.Int32
+
+		port := &testVectorOcmPort{
+			getManifest: func(ctx context.Context, ref compref.Ref) (ArtifactManifest, error) {
+				calls.Add(1)
+
+				select {
+				case <-release:
+					return testManifest(ref), nil
+				case <-ctx.Done():
+					return ArtifactManifest{}, ctx.Err()
+				}
+			},
+		}
+
+		r := newManifestTestReconcilerWithMetrics(port, 2, 1, metrics)
+		results := make(chan artifactManifestResult, 1)
+
+		go func() {
+			results <- r.downloadArtifactManifests(
+				context.Background(),
+				[]compref.Ref{
+					testArtifactRef("example.com/a", "1.0.0"),
+					testArtifactRef("example.com/b", "1.0.0"),
+				},
+			)
+		}()
+
+		Eventually(calls.Load).Should(Equal(int32(1)))
+
+		Eventually(func() float64 {
+			value, metricErr := metrictest.Value(promRegistry, "konfidence_vectordeployment_manifest_downloads_active", nil)
+			Expect(metricErr).NotTo(HaveOccurred())
+			return value
+		}).Should(Equal(float64(1)))
+
+		Consistently(func() float64 {
+			value, metricErr := metrictest.Value(promRegistry, "konfidence_vectordeployment_manifest_downloads_active", nil)
+			Expect(metricErr).NotTo(HaveOccurred())
+			return value
+		}, 100*time.Millisecond).Should(Equal(float64(1)))
+
+		close(release)
+
+		var result artifactManifestResult
+		Eventually(results).Should(Receive(&result))
+		Expect(result.err).NotTo(HaveOccurred())
+
+		Eventually(func() float64 {
+			value, metricErr := metrictest.Value(promRegistry, "konfidence_vectordeployment_manifest_downloads_active", nil)
+			Expect(metricErr).NotTo(HaveOccurred())
+			return value
+		}).Should(BeZero())
 	})
 
 	DescribeTable("invalidates a successful cached result when its identity changes",

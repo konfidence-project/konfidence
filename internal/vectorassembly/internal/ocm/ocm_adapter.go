@@ -15,8 +15,10 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
+	"github.com/konfidence-project/konfidence/pkg/observability"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	"github.com/opencontainers/go-digest"
@@ -49,6 +51,7 @@ type Adapter struct {
 	vectorSigner               crypto.Signer
 	digester                   crypto.Digester
 	ocmClient                  pkgocm.Client
+	metrics                    *observability.Metrics
 }
 
 func (a Adapter) GetArtifacts(ctx context.Context, references []compref.Ref) ([]vector.Artifact, error) {
@@ -59,9 +62,12 @@ func (a Adapter) GetArtifacts(ctx context.Context, references []compref.Ref) ([]
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch descriptors for artifact references: %w", err)
 	}
-	if err := a.verifier.Verify(ctx, a.resolver, a.artifactSpecs, slices.Collect(maps.Values(unverifiedResults))); err != nil {
-		return nil, fmt.Errorf("ocm artifact verification failed for one or more artifacts: %w", err)
+	verifyErr := a.verifier.Verify(ctx, a.resolver, a.artifactSpecs, slices.Collect(maps.Values(unverifiedResults)))
+	a.metrics.ObserveSignatureRequest(observability.ConsumerVectorAssembly, "artifact", verificationResult(a.artifactSpecs, verifyErr))
+	if verifyErr != nil {
+		return nil, fmt.Errorf("ocm artifact verification failed for one or more artifacts: %w", verifyErr)
 	}
+
 	artifacts, err := a.digestAndCollectArtifacts(ctx, unverifiedResults)
 	if err != nil {
 		return nil, fmt.Errorf("failed to digest artifact references: %w", err)
@@ -93,7 +99,9 @@ func (a Adapter) fetchAndCollectDescriptors(ctx context.Context, references []co
 
 func (a Adapter) fetchAndCollectDescriptor(
 	ctx context.Context, mux *sync.Mutex, ref compref.Ref, results map[compref.Ref]*ocmdescriptor.Descriptor) error {
+	started := time.Now()
 	desc, err := a.ocmClient.Get(ctx, ref)
+	a.metrics.ObserveDescriptorRequest(observability.ConsumerVectorAssembly, "artifact", classifyError(err), time.Since(started))
 	if err != nil {
 		return fmt.Errorf("unable to get descriptor for ocm component (%s): %w", ref, err)
 	}
@@ -121,13 +129,17 @@ func (a Adapter) digestAndCollectArtifacts(ctx context.Context, references map[c
 }
 
 func (a Adapter) GetVector(ctx context.Context, vectorRef compref.Ref) (vector.Vector, error) {
+	started := time.Now()
 	descriptor, err := a.ocmClient.Get(ctx, vectorRef)
+	a.metrics.ObserveDescriptorRequest(observability.ConsumerVectorAssembly, "vector", classifyError(err), time.Since(started))
 	if err != nil {
 		return vector.Vector{}, fmt.Errorf("unable to get latest ocm descriptor for vector (%s): %w", vectorRef, err)
 	}
-	if err := a.verifier.Verify(ctx, a.resolver, a.vectorSpecs, []*ocmdescriptor.Descriptor{&descriptor}); err != nil {
+	verifyErr := a.verifier.Verify(ctx, a.resolver, a.vectorSpecs, []*ocmdescriptor.Descriptor{&descriptor})
+	a.metrics.ObserveSignatureRequest(observability.ConsumerVectorAssembly, "vector", verificationResult(a.vectorSpecs, verifyErr))
+	if verifyErr != nil {
 		return vector.Vector{}, fmt.Errorf("unable to verify ocm descriptor for vector (%s) version (%s): %w",
-			vectorRef, descriptor.Component.Version, err)
+			vectorRef, descriptor.Component.Version, verifyErr)
 	}
 
 	// get vector configuration if existent
@@ -152,6 +164,7 @@ func (a Adapter) getVectorConfiguration(ctx context.Context, vectorRef compref.R
 	if vectorConfigResource != nil {
 		readBlob, _, err := a.ocmClient.GetLocalResource(ctx, vectorRef, vectorConfigResource.ToIdentity())
 		if err != nil {
+			a.metrics.ObserveLocalResourceRead(observability.ConsumerVectorAssembly, "vector_config", classifyError(err), 0)
 			return nil, fmt.Errorf("unable to get vector configuration for vector (%s) version (%s): %w",
 				vectorRef, descriptor.Component.Version, err)
 		}
@@ -159,10 +172,12 @@ func (a Adapter) getVectorConfiguration(ctx context.Context, vectorRef compref.R
 		var content bytes.Buffer
 		err = blob.Copy(&content, readBlob)
 		if err != nil {
+			a.metrics.ObserveLocalResourceRead(observability.ConsumerVectorAssembly, "vector_config", classifyError(err), 0)
 			return nil, fmt.Errorf("unable to read vector configuration for vector (%s) version (%s): %w",
 				vectorRef, descriptor.Component.Version, err)
 		}
 
+		a.metrics.ObserveLocalResourceRead(observability.ConsumerVectorAssembly, "vector_config", "success", content.Len())
 		vectorConfiguration = &vector.VectorConfiguration{
 			Content: content.Bytes(),
 		}
@@ -338,4 +353,31 @@ func applyDefaults(a *Adapter) {
 		verifier, _ := crypto.NewVerifierBuilder().Build()
 		a.verifier = verifier
 	}
+}
+
+func classifyError(err error) string {
+	switch {
+	case err == nil:
+		return "success"
+	case errors.Is(err, context.Canceled):
+		return "canceled"
+	case errors.Is(err, context.DeadlineExceeded):
+		return "timeout"
+	case errors.Is(err, pkgocm.ErrNotFound):
+		return "not_found"
+	case errors.Is(err, pkgocm.ErrInvalidComponentReference):
+		return "invalid_reference"
+	default:
+		return "error"
+	}
+}
+
+func verificationResult(specs []crypto.SignatureSpec, err error) string {
+	if len(specs) == 0 {
+		return "skipped"
+	}
+	if err != nil {
+		return "failure"
+	}
+	return "success"
 }

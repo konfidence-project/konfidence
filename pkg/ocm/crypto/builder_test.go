@@ -2,9 +2,12 @@ package crypto
 
 import (
 	"context"
+	"time"
 
+	"github.com/konfidence-project/konfidence/pkg/observability"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/prometheus/client_golang/prometheus"
 	"ocm.software/open-component-model/bindings/go/credentials"
 	runtime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 )
@@ -23,6 +26,21 @@ var _ = Describe("VerifierBuilder", func() {
 				Build()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(v).NotTo(BeNil())
+		})
+
+		It("builds cached and parallel verification with metrics", func() {
+			registry := prometheus.NewPedanticRegistry()
+			metrics, err := observability.New(registry)
+			Expect(err).NotTo(HaveOccurred())
+
+			verifier, err := NewVerifierBuilder().
+				WithMetrics(metrics).
+				WithCache(16, time.Minute).
+				WithParallelism(NewLimiter(1)).
+				Build()
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(verifier).NotTo(BeNil())
 		})
 	})
 })

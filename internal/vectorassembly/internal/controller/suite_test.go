@@ -191,7 +191,7 @@ func startManager() {
 	vectorCache, err := lru.New[string, vector.Vector](VectorCacheSize)
 	Expect(err).NotTo(HaveOccurred())
 
-	vectorTemplateReconciler = NewVectorTemplateReconciler(mgr, sharedVerifier, limiter, log, vectorCache, testVersionGenerator)
+	vectorTemplateReconciler = NewVectorTemplateReconciler(mgr, sharedVerifier, limiter, log, vectorCache, testVersionGenerator, nil)
 	vectorTemplateReconciler.assemblyPollInterval = 100 * time.Millisecond
 	Expect(vectorTemplateReconciler.SetupWithManager(mgr)).To(Succeed())
 

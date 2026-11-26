@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	"github.com/konfidence-project/konfidence/pkg/observability"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -46,6 +47,7 @@ func Domain() operator.Domain {
 			return SetupControllers(ctx, deps.Mgr, deps.Logger, Options{
 				OCISecret: registrySecret,
 				Verifier:  deps.Verifier,
+				Metrics:   deps.Metrics,
 			})
 		},
 	}
@@ -76,6 +78,8 @@ type Options struct {
 
 	// Verifier is the shared process-wide OCM verifier. Required; usually from operator.Deps.Verifier.
 	Verifier crypto.Verifier
+
+	Metrics *observability.Metrics
 
 	// MaxArtifactManifestDownloadsPerVectorDeployment is the maximum number of parallel artifact manifest downloads per vector deployment.
 	MaxArtifactManifestDownloadsPerVectorDeployment int
@@ -118,7 +122,7 @@ func SetupControllers(ctx context.Context, mgr manager.Manager, logger logr.Logg
 	vectorSpecs := loadSpecs(log, VectorSignaturesEnv, "vector")
 	artifactSpecs := loadSpecs(log, ArtifactSignaturesEnv, "artifact")
 
-	ocmAdapter, err := ocm.NewAdapter(ctx, resolver, opts.Verifier, vectorSpecs, artifactSpecs)
+	ocmAdapter, err := ocm.NewAdapter(ctx, resolver, opts.Verifier, vectorSpecs, artifactSpecs, opts.Metrics)
 	if err != nil {
 		return fmt.Errorf("unable to create OCM adapter: %w", err)
 	}
@@ -128,6 +132,7 @@ func SetupControllers(ctx context.Context, mgr manager.Manager, logger logr.Logg
 		Scheme:     mgr.GetScheme(),
 		Recorder:   mgr.GetEventRecorder(controller.VectorDeploymentControllerName),
 		OcmAdapter: ocmAdapter,
+		Metrics:    opts.Metrics,
 		MaxArtifactManifestDownloadsPerDeployment: manifestDownloadsPerDeployment,
 		MaxGlobalArtifactManifestDownloads:        globalManifestDownloads,
 	}).SetupWithManager(mgr, "vectordeployment"); err != nil {

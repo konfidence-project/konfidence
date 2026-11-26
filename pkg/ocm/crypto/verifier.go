@@ -11,6 +11,7 @@ import (
 	"slices"
 
 	"github.com/go-logr/logr"
+	"github.com/konfidence-project/konfidence/pkg/observability"
 	"ocm.software/open-component-model/bindings/go/credentials"
 	ocm "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	rsahandler "ocm.software/open-component-model/bindings/go/rsa/signing/handler"
@@ -42,6 +43,7 @@ type Verifier interface {
 type ocmVerifier struct {
 	log         logr.Logger
 	rsaVerifier signing.Verifier
+	metrics     *observability.Metrics
 }
 
 type ocmVerifierOption func(*ocmVerifier)
@@ -49,6 +51,12 @@ type ocmVerifierOption func(*ocmVerifier)
 func withVerifierLogger(log logr.Logger) ocmVerifierOption {
 	return func(v *ocmVerifier) {
 		v.log = log
+	}
+}
+
+func withVerifierMetrics(metrics *observability.Metrics) ocmVerifierOption {
+	return func(v *ocmVerifier) {
+		v.metrics = metrics
 	}
 }
 
@@ -131,9 +139,11 @@ func (o *ocmVerifier) verifySignature(ctx context.Context, resolver credentials.
 
 	// Step 8: verify signature
 	if err := o.rsaVerifier.Verify(ctx, sig, nil, creds); err != nil {
+		o.metrics.ObserveSignatureCrypto(observability.ResultFailure)
 		return fmt.Errorf("signature verification failed for %q: %w", spec.Name, err)
 	}
 
+	o.metrics.ObserveSignatureCrypto(observability.ResultSuccess)
 	return nil
 }
 

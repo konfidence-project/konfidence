@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	"github.com/konfidence-project/konfidence/pkg/observability"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
@@ -37,6 +38,8 @@ type Deps struct {
 	// Shutdown stops the operator; long-running domain routines call it when
 	// they fail terminally.
 	Shutdown context.CancelFunc
+
+	Metrics *observability.Metrics
 }
 
 // Domain is one --controllers toggle.

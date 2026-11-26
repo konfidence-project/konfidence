@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/konfidence-project/konfidence/pkg/observability"
 	"ocm.software/open-component-model/bindings/go/credentials"
 )
 
@@ -19,6 +20,7 @@ type VerifierBuilder struct {
 	cacheSize int
 	cacheTTL  time.Duration
 	log       logr.Logger
+	metrics   *observability.Metrics
 }
 
 // NewVerifierBuilder returns a builder with no parallelism and no caching enabled.
@@ -51,18 +53,24 @@ func (b *VerifierBuilder) WithCache(size int, ttl time.Duration) *VerifierBuilde
 	return b
 }
 
+func (b *VerifierBuilder) WithMetrics(metrics *observability.Metrics) *VerifierBuilder {
+	b.metrics = metrics
+	return b
+}
+
 // Build constructs the [Verifier]. The returned instance is safe for
 // concurrent use and should be shared process-wide.
 func (b *VerifierBuilder) Build() (Verifier, error) {
 	ocmVerifier, err := newOCMVerifier(
 		withVerifierLogger(b.log),
+		withVerifierMetrics(b.metrics),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("VerifierBuilder.Build: %w", err)
 	}
 	var inner Verifier = ocmVerifier
 	if b.cacheSize > 0 {
-		inner = newCachingVerifier(inner, b.cacheSize, b.cacheTTL, withCachingVerifierLogger(b.log))
+		inner = newCachingVerifier(inner, b.cacheSize, b.cacheTTL, withCachingVerifierLogger(b.log), withCachingVerifierMetrics(b.metrics))
 	}
 	if b.limiter != nil {
 		inner = newParallelVerifier(inner, b.limiter)

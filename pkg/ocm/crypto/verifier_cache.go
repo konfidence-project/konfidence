@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-logr/logr"
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
+	"github.com/konfidence-project/konfidence/pkg/observability"
 	"ocm.software/open-component-model/bindings/go/credentials"
 	ocm "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 )
@@ -29,9 +30,10 @@ import (
 // is known to have been compromised and stale verdicts must not be served for
 // the remainder of the TTL window.
 type cachingVerifier struct {
-	inner Verifier
-	log   logr.Logger
-	cache *lru.LRU[string, struct{}]
+	inner   Verifier
+	log     logr.Logger
+	cache   *lru.LRU[string, struct{}]
+	metrics *observability.Metrics
 }
 
 type cachingVerifierOption func(*cachingVerifier)
@@ -39,6 +41,12 @@ type cachingVerifierOption func(*cachingVerifier)
 func withCachingVerifierLogger(log logr.Logger) cachingVerifierOption {
 	return func(c *cachingVerifier) {
 		c.log = log
+	}
+}
+
+func withCachingVerifierMetrics(metrics *observability.Metrics) cachingVerifierOption {
+	return func(c *cachingVerifier) {
+		c.metrics = metrics
 	}
 }
 
@@ -99,8 +107,11 @@ func (c *cachingVerifier) verify(ctx context.Context, resolver credentials.Resol
 
 	key := cacheKey(sig, spec)
 	if _, hit := c.cache.Get(key); hit {
+		c.metrics.ObserveSignatureCacheLookup(observability.CacheResultHit)
 		return nil
 	}
+
+	c.metrics.ObserveSignatureCacheLookup(observability.CacheResultMiss)
 	if err := c.inner.Verify(ctx, resolver, []SignatureSpec{spec}, []*ocm.Descriptor{desc}); err != nil {
 		return err
 	}

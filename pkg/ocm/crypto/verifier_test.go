@@ -8,8 +8,11 @@ import (
 	"log/slog"
 	"sync/atomic"
 
+	"github.com/konfidence-project/konfidence/pkg/observability"
+	metrictest "github.com/konfidence-project/konfidence/pkg/testutil/metrics"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/go-logr/logr"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto/internal/mocks"
@@ -409,6 +412,144 @@ var _ = Describe("OCMVerifier", func() {
 		// at Verify time by the preFlight layer (see verifier_preflight_test.go).
 		Expect(spec.Issuer).NotTo(BeNil())
 		Expect(*spec.Issuer).To(Equal(""))
+	})
+
+	It("records successful RSA verification", func() {
+		promRegistry := prometheus.NewPedanticRegistry()
+		metrics, err := observability.New(promRegistry)
+		Expect(err).NotTo(HaveOccurred())
+
+		spec := defaultSpec("sig1")
+		desc := &runtime.Descriptor{
+			Signatures: []runtime.Signature{
+				matchingSig("sig1", spec),
+			},
+		}
+
+		v := makeVerifier()
+		v.metrics = metrics
+
+		verifierMock.EXPECT().GetVerifyingCredentialConsumerIdentity(gomock.Any(), desc.Signatures[0], gomock.Nil()).Return(identity, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(creds, nil)
+
+		verifierMock.EXPECT().
+			Verify(
+				gomock.Any(),
+				desc.Signatures[0],
+				gomock.Nil(),
+				creds,
+			).
+			Return(nil)
+
+		Expect(v.Verify(
+			context.Background(),
+			resolverMock,
+			[]SignatureSpec{spec},
+			[]*runtime.Descriptor{desc},
+		)).To(Succeed())
+
+		value, err := metrictest.Value(
+			promRegistry,
+			"konfidence_ocm_signature_crypto_operations_total",
+			prometheus.Labels{
+				"result": observability.ResultSuccess,
+			},
+		)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(value).To(Equal(float64(1)))
+	})
+
+	It("records failed RSA verification", func() {
+		promRegistry := prometheus.NewPedanticRegistry()
+		metrics, err := observability.New(promRegistry)
+		Expect(err).NotTo(HaveOccurred())
+
+		spec := defaultSpec("sig1")
+		desc := &runtime.Descriptor{
+			Signatures: []runtime.Signature{
+				matchingSig("sig1", spec),
+			},
+		}
+
+		v := makeVerifier()
+		v.metrics = metrics
+
+		verifierMock.EXPECT().
+			GetVerifyingCredentialConsumerIdentity(
+				gomock.Any(),
+				desc.Signatures[0],
+				gomock.Nil(),
+			).
+			Return(identity, nil)
+
+		resolverMock.EXPECT().
+			Resolve(gomock.Any(), identity).
+			Return(creds, nil)
+
+		verifierMock.EXPECT().
+			Verify(
+				gomock.Any(),
+				desc.Signatures[0],
+				gomock.Nil(),
+				creds,
+			).
+			Return(errors.New("invalid signature"))
+
+		Expect(v.Verify(
+			context.Background(),
+			resolverMock,
+			[]SignatureSpec{spec},
+			[]*runtime.Descriptor{desc},
+		)).To(HaveOccurred())
+
+		value, err := metrictest.Value(
+			promRegistry,
+			"konfidence_ocm_signature_crypto_operations_total",
+			prometheus.Labels{
+				"result": observability.ResultFailure,
+			},
+		)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(value).To(Equal(float64(1)))
+	})
+
+	It("does not record crypto when validation fails before RSA", func() {
+		promRegistry := prometheus.NewPedanticRegistry()
+		metrics, err := observability.New(promRegistry)
+		Expect(err).NotTo(HaveOccurred())
+
+		spec := defaultSpec("sig1")
+		desc := &runtime.Descriptor{}
+
+		v := makeVerifier()
+		v.metrics = metrics
+
+		Expect(v.Verify(
+			context.Background(),
+			resolverMock,
+			[]SignatureSpec{spec},
+			[]*runtime.Descriptor{desc},
+		)).To(HaveOccurred())
+
+		successes, err := metrictest.Value(
+			promRegistry,
+			"konfidence_ocm_signature_crypto_operations_total",
+			prometheus.Labels{
+				"result": observability.ResultSuccess,
+			},
+		)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(successes).To(BeZero())
+
+		failures, err := metrictest.Value(
+			promRegistry,
+			"konfidence_ocm_signature_crypto_operations_total",
+			prometheus.Labels{
+				"result": observability.ResultFailure,
+			},
+		)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(failures).To(BeZero())
 	})
 })
 

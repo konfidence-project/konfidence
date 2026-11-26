@@ -4,15 +4,19 @@ import (
 	"context"
 	"errors"
 	"sync/atomic"
+	"time"
 
+	"github.com/konfidence-project/konfidence/pkg/observability"
+	metrictest "github.com/konfidence-project/konfidence/pkg/testutil/metrics"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/apimachinery/pkg/types"
 )
 
 var _ = Describe("Artifact manifest job registry", func() {
 	It("removes and cancels a job", func() {
-		registry := newJobRegistry()
+		registry := newJobRegistry(nil)
 		nn := types.NamespacedName{Namespace: "default", Name: "vector"}
 
 		started := make(chan struct{})
@@ -31,7 +35,7 @@ var _ = Describe("Artifact manifest job registry", func() {
 		Expect(retryAfter).To(BeZero())
 
 		Eventually(started).Should(BeClosed())
-		registry.remove(nn)
+		Expect(registry.remove(nn)).To(BeTrue())
 		Eventually(canceled).Should(BeClosed())
 
 		_, exists := registry.get(nn)
@@ -39,7 +43,7 @@ var _ = Describe("Artifact manifest job registry", func() {
 	})
 
 	It("clears retry state when a job succeeds or is removed", func() {
-		registry := newJobRegistry()
+		registry := newJobRegistry(nil)
 		nn := types.NamespacedName{Namespace: "default", Name: "vector"}
 
 		launched, retryAfter := registry.launch(nn, 1, types.UID("uid"), []string{"ref"},
@@ -63,7 +67,7 @@ var _ = Describe("Artifact manifest job registry", func() {
 		Expect(result.err).To(MatchError("registry unavailable"))
 		Expect(registry.retryLimiter.NumRequeues(nn)).To(Equal(1))
 
-		registry.remove(nn)
+		Expect(registry.remove(nn)).To(BeTrue())
 		Expect(registry.retryLimiter.NumRequeues(nn)).To(BeZero())
 
 		launched, retryAfter = registry.launch(nn, 1, types.UID("uid"), []string{"ref"},
@@ -98,7 +102,7 @@ var _ = Describe("Artifact manifest job registry", func() {
 	})
 
 	It("caches a permanent result until the job is removed", func() {
-		registry := newJobRegistry()
+		registry := newJobRegistry(nil)
 		DeferCleanup(registry.shutdown)
 
 		nn := types.NamespacedName{
@@ -149,7 +153,7 @@ var _ = Describe("Artifact manifest job registry", func() {
 		Expect(registry.retryLimiter.NumRequeues(nn)).To(BeZero())
 
 		By("removing the cached result")
-		registry.remove(nn)
+		Expect(registry.remove(nn)).To(BeTrue())
 
 		_, exists = registry.get(nn)
 		Expect(exists).To(BeFalse())
@@ -160,7 +164,7 @@ var _ = Describe("Artifact manifest job registry", func() {
 	})
 
 	It("shuts down all jobs and rejects later launches", func() {
-		registry := newJobRegistry()
+		registry := newJobRegistry(nil)
 
 		var running atomic.Int32
 		exited := make(chan struct{}, 2)
@@ -208,7 +212,7 @@ var _ = Describe("Artifact manifest job registry", func() {
 	})
 
 	It("cancels an existing job before replacing it", func() {
-		registry := newJobRegistry()
+		registry := newJobRegistry(nil)
 		DeferCleanup(registry.shutdown)
 
 		nn := types.NamespacedName{
@@ -259,4 +263,184 @@ var _ = Describe("Artifact manifest job registry", func() {
 
 		Expect(result.err).NotTo(HaveOccurred())
 	})
+
+	It("records misses until a completed result is cached, then records a hit", func() {
+		promRegistry := prometheus.NewPedanticRegistry()
+		metrics, err := observability.New(promRegistry)
+		Expect(err).NotTo(HaveOccurred())
+
+		registry := newJobRegistry(metrics)
+		DeferCleanup(registry.shutdown)
+
+		nn := types.NamespacedName{
+			Namespace: "default",
+			Name:      "vector",
+		}
+
+		release := make(chan struct{})
+		launched, retryAfter := registry.launch(nn, 1, types.UID("uid"), []string{"ref"},
+			func(context.Context) artifactManifestResult {
+				<-release
+				return artifactManifestResult{}
+			},
+		)
+		Expect(launched).To(BeTrue())
+		Expect(retryAfter).To(BeZero())
+
+		job, exists := registry.get(nn)
+		Expect(exists).To(BeTrue())
+
+		_, completed := registry.completedResult(nn, job)
+		Expect(completed).To(BeFalse())
+
+		close(release)
+		Eventually(func() int {
+			return len(job.result)
+		}).Should(Equal(1))
+
+		result, completed := registry.completedResult(nn, job)
+		Expect(completed).To(BeTrue())
+		Expect(result.err).NotTo(HaveOccurred())
+
+		result, completed = registry.completedResult(nn, job)
+		Expect(completed).To(BeTrue())
+		Expect(result.err).NotTo(HaveOccurred())
+
+		misses, err := metrictest.Value(promRegistry, "konfidence_vectordeployment_manifest_cache_lookups_total",
+			prometheus.Labels{
+				"result": observability.CacheResultMiss,
+			},
+		)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Initial launch, running poll, and first completion consumption are all
+		// lookups without an already-cached result.
+		Expect(misses).To(Equal(float64(3)))
+
+		hits, err := metrictest.Value(promRegistry, "konfidence_vectordeployment_manifest_cache_lookups_total",
+			prometheus.Labels{
+				"result": observability.CacheResultHit,
+			},
+		)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(hits).To(Equal(float64(1)))
+	})
+
+	It("records backoff as a miss and increments retry only when the retry launches", func() {
+		promRegistry := prometheus.NewPedanticRegistry()
+		metrics, err := observability.New(promRegistry)
+		Expect(err).NotTo(HaveOccurred())
+
+		registry := newJobRegistry(metrics)
+		DeferCleanup(registry.shutdown)
+
+		now := time.Date(2026, time.November, 25, 12, 0, 0, 0, time.UTC)
+		registry.now = func() time.Time { return now }
+
+		nn := types.NamespacedName{
+			Namespace: "default",
+			Name:      "vector",
+		}
+
+		launched, _ := registry.launch(nn, 1, types.UID("uid"), []string{"ref"},
+			func(context.Context) artifactManifestResult {
+				return artifactManifestResult{
+					err: errors.New("registry unavailable"),
+				}
+			},
+		)
+		Expect(launched).To(BeTrue())
+
+		job, exists := registry.get(nn)
+		Expect(exists).To(BeTrue())
+
+		Eventually(func() int {
+			return len(job.result)
+		}).Should(Equal(1))
+
+		result, completed := registry.completedResult(nn, job)
+		Expect(completed).To(BeTrue())
+		Expect(result.err).To(HaveOccurred())
+
+		launched, retryAfter := registry.launch(nn, 1, types.UID("uid"), []string{"ref"},
+			func(context.Context) artifactManifestResult {
+				return artifactManifestResult{}
+			},
+		)
+		Expect(launched).To(BeFalse())
+		Expect(retryAfter).To(Equal(defaultArtifactManifestRetryBaseDelay))
+
+		retries, err := metrictest.Value(promRegistry, "konfidence_vectordeployment_manifest_job_retries_total", nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(retries).To(BeZero())
+
+		now = now.Add(defaultArtifactManifestRetryBaseDelay)
+
+		launched, retryAfter = registry.launch(nn, 1, types.UID("uid"), []string{"ref"},
+			func(context.Context) artifactManifestResult {
+				return artifactManifestResult{}
+			},
+		)
+		Expect(launched).To(BeTrue())
+		Expect(retryAfter).To(BeZero())
+
+		retries, err = metrictest.Value(promRegistry, "konfidence_vectordeployment_manifest_job_retries_total", nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(retries).To(Equal(float64(1)))
+
+		misses, err := metrictest.Value(promRegistry, "konfidence_vectordeployment_manifest_cache_lookups_total",
+			prometheus.Labels{
+				"result": observability.CacheResultMiss,
+			},
+		)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Initial launch, transient-result consumption, backoff poll, and retry
+		// launch are all lookups without an already-cached result.
+		Expect(misses).To(Equal(float64(4)))
+	})
+	DescribeTable(
+		"records identity invalidation",
+		func(oldGeneration, newGeneration int64, oldUID, newUID types.UID, oldReferences, newReferences []string, expectedReason string) {
+			promRegistry := prometheus.NewPedanticRegistry()
+			metrics, err := observability.New(promRegistry)
+			Expect(err).NotTo(HaveOccurred())
+
+			registry := newJobRegistry(metrics)
+			DeferCleanup(registry.shutdown)
+
+			nn := types.NamespacedName{
+				Namespace: "default",
+				Name:      "vector",
+			}
+
+			registry.retries[nn] = &manifestRetry{
+				manifestJobIdentity: newManifestJobIdentity(oldGeneration, oldUID, oldReferences),
+				notBefore:           time.Now().Add(time.Hour),
+			}
+
+			launched, _ := registry.launch(nn, newGeneration, newUID, newReferences,
+				func(context.Context) artifactManifestResult {
+					return artifactManifestResult{}
+				},
+			)
+			Expect(launched).To(BeTrue())
+
+			value, err := metrictest.Value(promRegistry, "konfidence_vectordeployment_manifest_cache_invalidations_total",
+				prometheus.Labels{"reason": expectedReason},
+			)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(value).To(Equal(float64(1)))
+		},
+		Entry("for a UID change", int64(1), int64(1), types.UID("old"), types.UID("new"), []string{"ref"}, []string{"ref"},
+			observability.ManifestInvalidationUIDChanged,
+		),
+		Entry("for a generation change", int64(1), int64(2), types.UID("uid"), types.UID("uid"), []string{"ref"}, []string{"ref"},
+			observability.ManifestInvalidationGenerationChanged,
+		),
+		Entry("for a reference change", int64(1), int64(1), types.UID("uid"), types.UID("uid"), []string{"old"}, []string{"new"},
+			observability.ManifestInvalidationReferencesChanged,
+		),
+	)
+
 })
