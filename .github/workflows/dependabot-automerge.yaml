@@ -8,7 +8,9 @@ jobs:
   automerge:
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     permissions:
-      contents: write
-      pull-requests: write
-    # Metadata only; no checkout, App token, or automatic approval.
-    uses: konfidence-project/.github/.github/workflows/dependabot-automerge.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
+      contents: read
+      pull-requests: read
+    # Metadata only; scoped bot approval uses this repo's automation environment.
+    uses: konfidence-project/.github/.github/workflows/dependabot-automerge.yaml@5e9b632f4421802e0e424b6340de6f13e50cba70 # candidate v5; re-pin after release
+    secrets:
+      KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
