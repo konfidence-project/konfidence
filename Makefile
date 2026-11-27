@@ -203,7 +203,9 @@ generate-api-typescript: hermit ## Generate the shared TypeScript API contract.
 	pnpm --filter @konfidence/api-client exec oxfmt src/schema.d.ts
 
 .PHONY: check-openapi
-check-openapi: generate-api ## Verify committed OpenAPI-derived code is up to date.
+check-openapi: hermit ## Verify committed OpenAPI-derived code is up to date.
+	pnpm install --frozen-lockfile
+	$(MAKE) generate-api
 	@hack/check-openapi.sh
 
 .PHONY: generate-sqlc

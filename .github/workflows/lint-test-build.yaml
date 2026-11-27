@@ -12,43 +12,42 @@ jobs:
     uses: konfidence-project/.github/.github/workflows/reuse-lint.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
   check-manifests:
     name: Check / Manifests
-    uses: konfidence-project/.github/.github/workflows/test.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
+    uses: konfidence-project/.github/.github/workflows/test.yaml@150fe39f4582d157be313c93881aad7a425b1a6d # hardened workflows
     with:
       test-cmd: check-manifests
   check-generate:
     name: Check / Generate
-    uses: konfidence-project/.github/.github/workflows/test.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
+    uses: konfidence-project/.github/.github/workflows/test.yaml@150fe39f4582d157be313c93881aad7a425b1a6d # hardened workflows
     with:
       test-cmd: check-generate
   check-openapi:
     name: Check / OpenAPI
-    uses: konfidence-project/.github/.github/workflows/test.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
+    uses: konfidence-project/.github/.github/workflows/test.yaml@150fe39f4582d157be313c93881aad7a425b1a6d # hardened workflows
     with:
-      before-tests: pnpm install --frozen-lockfile
       test-cmd: check-openapi
   check-validate:
     name: Check / Validate Samples
-    uses: konfidence-project/.github/.github/workflows/test.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
+    uses: konfidence-project/.github/.github/workflows/test.yaml@150fe39f4582d157be313c93881aad7a425b1a6d # hardened workflows
     with:
       test-cmd: validate
   test-operators:
     name: Test / Operators
-    uses: konfidence-project/.github/.github/workflows/test.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
+    uses: konfidence-project/.github/.github/workflows/test.yaml@150fe39f4582d157be313c93881aad7a425b1a6d # hardened workflows
     with:
       test-cmd: test-operators
   test-pkg:
     name: Test / Pkg
-    uses: konfidence-project/.github/.github/workflows/test.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
+    uses: konfidence-project/.github/.github/workflows/test.yaml@150fe39f4582d157be313c93881aad7a425b1a6d # hardened workflows
     with:
       test-cmd: test-pkg
   test-kden-cli:
     name: Test / kden CLI
-    uses: konfidence-project/.github/.github/workflows/test.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
+    uses: konfidence-project/.github/.github/workflows/test.yaml@150fe39f4582d157be313c93881aad7a425b1a6d # hardened workflows
     with:
       test-cmd: test-kden-cli
   test-api:
     name: Test / API
-    uses: konfidence-project/.github/.github/workflows/test.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
+    uses: konfidence-project/.github/.github/workflows/test.yaml@150fe39f4582d157be313c93881aad7a425b1a6d # hardened workflows
     with:
       test-cmd: test-api
   build:
