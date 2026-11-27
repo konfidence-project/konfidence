@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/adrg/xdg"
+	cfg "github.com/konfidence-project/konfidence/internal/kden/config"
+	"github.com/konfidence-project/konfidence/internal/kden/testutil"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -18,4 +20,5 @@ func TestCmd(t *testing.T) {
 var _ = BeforeSuite(func() {
 	GinkgoT().Setenv("XDG_CONFIG_HOME", GinkgoT().TempDir())
 	xdg.Reload()
+	cfg.Config.Output = testutil.JSONOutputFormat
 })

@@ -82,6 +82,7 @@ kden artifact [flags]
 
 * [kden](#kden)  - Kden CLI tool for working with Konfidence
 * [kden artifact alias](#kden-artifact-alias)  - Create or update a mutable alias tag for a component version
+* [kden artifact content](#kden-artifact-content)  - Get OCM content of an artifact for a given project id
 * [kden artifact push](#kden-artifact-push)  - Push a component version to a registry
 * [kden artifact sign](#kden-artifact-sign)  - Sign artifact
 * [kden artifact validate](#kden-artifact-validate)  - Validate artifacts against predefined JSON schema.
@@ -105,6 +106,43 @@ kden artifact alias <source-ref> <alias> [flags]
 
 ```
   -h, --help   help for alias
+```
+
+### Options inherited from parent commands
+
+```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
+      --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
+      --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
+      --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
+      --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
+      --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
+```
+
+### SEE ALSO
+
+* [kden artifact](#kden-artifact)  - Manage artifacts
+
+
+## kden artifact content
+
+Get OCM content of an artifact for a given project id
+
+### Synopsis
+
+Retrieve and display the OCM content of an artifact for a given project id.
+
+```
+kden artifact content [flags]
+```
+
+### Options
+
+```
+  -h, --help               help for content
+  -p, --projectId string   The ID of the project the artifact belongs to (required)
+      --ref string         The OCM ref of the artifact to retrieve content for (required)
 ```
 
 ### Options inherited from parent commands
@@ -813,9 +851,87 @@ kden vector [flags]
 ### SEE ALSO
 
 * [kden](#kden)  - Kden CLI tool for working with Konfidence
+* [kden vector content](#kden-vector-content)  - List OCM content of vectors for a given project id
+* [kden vector diff](#kden-vector-diff)  - Show the diff between two vectors for a given project id
 * [kden vector push](#kden-vector-push)  - 
 * [kden vector sign](#kden-vector-sign)  - Sign vector
 * [kden vector validate](#kden-vector-validate)  - Validate a vector against a predefined JSON schema.
+
+
+## kden vector content
+
+List OCM content of vectors for a given project id
+
+### Synopsis
+
+Retrieve and display the OCM content of one or more vectors for a given project id.
+
+```
+kden vector content [flags]
+```
+
+### Options
+
+```
+  -h, --help               help for content
+  -p, --projectId string   The ID of the project the vectors belong to (required)
+      --refs strings       The OCM refs of the vectors to retrieve content for (required)
+```
+
+### Options inherited from parent commands
+
+```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
+      --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
+      --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
+      --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
+      --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
+      --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
+```
+
+### SEE ALSO
+
+* [kden vector](#kden-vector)  - Manage vectors
+
+
+## kden vector diff
+
+Show the diff between two vectors for a given project id
+
+### Synopsis
+
+Retrieve and display the diff of the OCM content between two vectors for a given project id.
+
+```
+kden vector diff [flags]
+```
+
+### Options
+
+```
+  -h, --help                help for diff
+      --include-unchanged   Include unchanged components and config entries in the diff
+      --left string         The OCM ref of the left vector to compare (required)
+  -p, --projectId string    The ID of the project the vectors belong to (required)
+      --right string        The OCM ref of the right vector to compare (required)
+```
+
+### Options inherited from parent commands
+
+```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
+      --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
+      --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
+      --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
+      --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
+      --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
+```
+
+### SEE ALSO
+
+* [kden vector](#kden-vector)  - Manage vectors
 
 
 ## kden vector push
