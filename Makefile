@@ -197,8 +197,12 @@ generate-api-go: hermit ## Generate the OpenAPI Go server and kden client.
 	$(OAPI_CODEGEN) -config api/codegen-server.yaml $(OPENAPI_SPEC)
 	$(OAPI_CODEGEN) -config api/codegen-client.yaml $(OPENAPI_SPEC)
 
+.PHONY: install-js-deps
+install-js-deps: hermit ## Install locked JavaScript workspace dependencies.
+	pnpm install --frozen-lockfile
+
 .PHONY: generate-api-typescript
-generate-api-typescript: hermit ## Generate the shared TypeScript API contract.
+generate-api-typescript: install-js-deps ## Generate the shared TypeScript API contract.
 	pnpm --filter @konfidence/api-client exec openapi-typescript "$(abspath $(OPENAPI_SPEC))" -o src/schema.d.ts
 	pnpm --filter @konfidence/api-client exec oxfmt src/schema.d.ts
 

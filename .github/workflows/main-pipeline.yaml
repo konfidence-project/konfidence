@@ -1,35 +1,31 @@
 name: Main
-
 on:
   push:
-    branches:
-      - main
-
+    branches: [main]
+permissions:
+  contents: read
 jobs:
   lint-test-build:
     name: Main
-    # Skip when the release PR with a chart version bump is merged into main — the release
-    # pipeline handles building and publishing for those commits via the semver tag
-    # that the release-please action pushes when the release PR is merged.
     if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
+    uses: ./.github/workflows/lint-test-build.yaml
+  publish:
+    name: Publish images
+    needs: [lint-test-build]
     permissions:
       contents: write
       packages: write
-      attestations: write
-      id-token: write
-    uses: ./.github/workflows/lint-test-build.yaml
-    secrets: inherit
+    uses: konfidence-project/.github/.github/workflows/goreleaser.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
     with:
       mode: main
       snapshot-tag: ${{ github.sha }}
-
   publish-dev-chart:
     name: Publish Dev Helm Chart
-    needs: [lint-test-build]
+    needs: [publish]
     permissions:
       contents: read
       packages: write
-    uses: konfidence-project/.github/.github/workflows/publish-helm-charts.yaml@v4
+    uses: konfidence-project/.github/.github/workflows/publish-helm-charts.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
     with:
       mode: dev
       charts: charts/konfidence

@@ -1,87 +1,56 @@
 name: Lint, Test and Build
-
 on:
   workflow_call:
-    inputs:
-      mode:
-        description: 'Build mode: "pr" (compile only), "main" (build + push images tagged with SHA), "release" (full release via goreleaser)'
-        required: true
-        type: string
-      snapshot-tag:
-        description: Tag to use for snapshot builds (e.g. git SHA). Leave empty for release mode with actual git version tag.
-        required: false
-        type: string
-        default: ''
-
+permissions:
+  contents: read
 jobs:
   lint:
     name: Lint
-    uses: konfidence-project/.github/.github/workflows/golang-lint.yaml@v4
-
+    uses: konfidence-project/.github/.github/workflows/golang-lint.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
   reuse-lint:
     name: REUSE
-    uses: konfidence-project/.github/.github/workflows/reuse-lint.yaml@v4
-
+    uses: konfidence-project/.github/.github/workflows/reuse-lint.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
   check-manifests:
     name: Check / Manifests
-    uses: konfidence-project/.github/.github/workflows/test.yaml@v4
+    uses: konfidence-project/.github/.github/workflows/test.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
     with:
       test-cmd: check-manifests
-
   check-generate:
     name: Check / Generate
-    uses: konfidence-project/.github/.github/workflows/test.yaml@v4
+    uses: konfidence-project/.github/.github/workflows/test.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
     with:
       test-cmd: check-generate
-
   check-openapi:
     name: Check / OpenAPI
-    uses: konfidence-project/.github/.github/workflows/test.yaml@v4
+    uses: konfidence-project/.github/.github/workflows/test.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
     with:
-      before-tests: pnpm install --frozen-lockfile
       test-cmd: check-openapi
-
   check-validate:
     name: Check / Validate Samples
-    uses: konfidence-project/.github/.github/workflows/test.yaml@v4
+    uses: konfidence-project/.github/.github/workflows/test.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
     with:
       test-cmd: validate
-
   test-operators:
     name: Test / Operators
-    uses: konfidence-project/.github/.github/workflows/test.yaml@v4
+    uses: konfidence-project/.github/.github/workflows/test.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
     with:
       test-cmd: test-operators
-
   test-pkg:
     name: Test / Pkg
-    uses: konfidence-project/.github/.github/workflows/test.yaml@v4
+    uses: konfidence-project/.github/.github/workflows/test.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
     with:
       test-cmd: test-pkg
-
   test-kden-cli:
     name: Test / kden CLI
-    uses: konfidence-project/.github/.github/workflows/test.yaml@v4
+    uses: konfidence-project/.github/.github/workflows/test.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
     with:
       test-cmd: test-kden-cli
-
   test-api:
     name: Test / API
-    uses: konfidence-project/.github/.github/workflows/test.yaml@v4
+    uses: konfidence-project/.github/.github/workflows/test.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
     with:
       test-cmd: test-api
-
   build:
     name: Build / Konfidence
     needs: [lint, reuse-lint, check-manifests, check-generate, check-openapi, check-validate, test-operators, test-pkg, test-kden-cli, test-api]
-    permissions:
-      contents: write
-      packages: write
-      attestations: write
-      id-token: write
-    uses: konfidence-project/.github/.github/workflows/goreleaser.yaml@v4
-    with:
-      runner: konfidence-large
-      registry: ghcr.io
-      mode: ${{ inputs.mode }}
-      snapshot-tag: ${{ inputs.snapshot-tag }}
+    uses: konfidence-project/.github/.github/workflows/goreleaser-pr.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
