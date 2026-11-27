@@ -15,7 +15,7 @@ jobs:
   prerelease:
     name: Pre-release
     if: github.ref == 'refs/heads/main'
-    uses: konfidence-project/.github/.github/workflows/prerelease-pipeline.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
+    uses: konfidence-project/.github/.github/workflows/prerelease-pipeline.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
     secrets:
       KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
     with:

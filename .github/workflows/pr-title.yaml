@@ -10,4 +10,4 @@ permissions:
 
 jobs:
   validate:
-    uses: konfidence-project/.github/.github/workflows/pr-title.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
+    uses: konfidence-project/.github/.github/workflows/pr-title.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0

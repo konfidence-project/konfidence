@@ -8,7 +8,7 @@ permissions:
 jobs:
   version:
     name: Validate Release Tag
-    uses: konfidence-project/.github/.github/workflows/validate-release-tag.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
+    uses: konfidence-project/.github/.github/workflows/validate-release-tag.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
   lint-test-build:
     name: Release
     needs: [version]
@@ -18,7 +18,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: konfidence-project/.github/.github/workflows/goreleaser.yaml@22e69a2a9cd4fc6a9e160cc0008a40e0106abf22 # protected release environment
+    uses: konfidence-project/.github/.github/workflows/goreleaser.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
     with:
       mode: release
   publish-helm-charts:
@@ -27,7 +27,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    uses: konfidence-project/.github/.github/workflows/publish-helm-charts.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
+    uses: konfidence-project/.github/.github/workflows/publish-helm-charts.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
     with:
       version: ${{ needs.version.outputs.version }}
       charts: charts/konfidence

@@ -15,7 +15,7 @@ jobs:
   update-release-pr:
     name: Update Release PR
     if: github.event_name == 'push'
-    uses: konfidence-project/.github/.github/workflows/release-pr.yaml@9891c53d7855f442c4e96a02b889b7cf2a8b9f79 # candidate v5; re-pin after release
+    uses: konfidence-project/.github/.github/workflows/release-pr.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
     secrets:
       KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
   release-please:
@@ -25,7 +25,7 @@ jobs:
       github.event.pull_request.merged == true &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       contains(github.event.pull_request.labels.*.name, 'autorelease: pending')
-    uses: konfidence-project/.github/.github/workflows/release-please.yaml@8e03fc5ecfd62cbec97f3462401ee3232277d55b # candidate v5; re-pin after release
+    uses: konfidence-project/.github/.github/workflows/release-please.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
     secrets:
       KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
   release:
@@ -39,7 +39,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: konfidence-project/.github/.github/workflows/goreleaser.yaml@8e03fc5ecfd62cbec97f3462401ee3232277d55b # candidate v5; re-pin after release
+    uses: konfidence-project/.github/.github/workflows/goreleaser.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
     with:
       mode: release
       snapshot-tag: ${{ needs.release-please.outputs.tag_name }}
@@ -50,7 +50,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    uses: konfidence-project/.github/.github/workflows/publish-helm-charts.yaml@8e03fc5ecfd62cbec97f3462401ee3232277d55b # candidate v5; re-pin after release
+    uses: konfidence-project/.github/.github/workflows/publish-helm-charts.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
     with:
       version: ${{ needs.release-please.outputs.tag_name }}
       charts: charts/konfidence

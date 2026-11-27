@@ -11,6 +11,6 @@ jobs:
       contents: read
       pull-requests: read
     # Metadata only; scoped bot approval uses this repo's automation environment.
-    uses: konfidence-project/.github/.github/workflows/dependabot-automerge.yaml@5e9b632f4421802e0e424b6340de6f13e50cba70 # candidate v5; re-pin after release
+    uses: konfidence-project/.github/.github/workflows/dependabot-automerge.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
     secrets:
       KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}

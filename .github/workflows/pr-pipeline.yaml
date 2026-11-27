@@ -46,6 +46,6 @@ jobs:
     name: CI Gate
     needs: [workflow-security, lint-test-build, codeql-status]
     if: always()
-    uses: konfidence-project/.github/.github/workflows/ci-gate.yaml@2de51ca6a1295e02bbceaf3c88bdba21b4cc0169 # hardened workflows
+    uses: konfidence-project/.github/.github/workflows/ci-gate.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
     with:
       needs-json: ${{ toJson(needs) }}
