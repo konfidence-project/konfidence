@@ -9,3 +9,7 @@ spec:
     admin:
       - session:
           memberOf: [local-admin]
+  credentials:
+    ocm:
+      refs:
+        - name: registry-credentials

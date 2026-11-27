@@ -257,9 +257,9 @@ var _ = Describe("Stage Controller", Ordered, func() {
 			verifyStageReady(ctx, k8sClient, StageDev, unlabeledNS, 2*pkgctrl.NamespaceNotReadyRequeueInterval, interval)
 		})
 	})
+
 })
 
-// check that the stage status keeps mirroring no active stageVersion at all
 func verifyActiveStageVersionStaysUnset(ctx context.Context, k8sClient client.Client, stageName string,
 	namespace string, interval time.Duration) {
 	stage := &konfidence.Stage{}

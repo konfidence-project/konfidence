@@ -59,7 +59,6 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			Scheme:   k8sManager.GetScheme(),
 			Recorder: k8sManager.GetEventRecorder(VectorDeploymentControllerName),
 		}
-
 		SetManifestPollIntervalForTest(reconciler, 20*time.Millisecond)
 		gomega.Expect(reconciler.SetupWithManager(k8sManager, controllerName)).To(gomega.Succeed())
 	})
@@ -67,7 +66,9 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 	BeforeEach(func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		ocmAdapterMock = mocks.NewMockVectorOcmPort(mockCtrl)
-		reconciler.OcmAdapter = ocmAdapterMock
+		reconciler.AdapterFactory = func(_ context.Context, _ *konfidence.VectorDeployment) (VectorOcmPort, error) {
+			return ocmAdapterMock, nil
+		}
 	})
 
 	AfterEach(func() {

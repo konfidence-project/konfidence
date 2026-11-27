@@ -228,3 +228,37 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 		Expect(stage.Spec.Vector).To(Equal(testVector))
 	})
 })
+
+var _ = Describe("VectorPromotion execution credential propagation", Ordered, Serial, func() {
+
+	BeforeEach(func() { cleanupPromotions() })
+
+	It("promotes the vector onto the Stage during execution", func() {
+		createLandscapeWithNamespace("exec-landscape", "kden-l-exec")
+		stage := createStage("kden-l-exec", "exec-stage", "")
+		config := createConfig("exec-config",
+			templateSource("some-template"), stageTargetInLandscape("exec-stage", "exec-landscape"))
+
+		promotion := &konfidence.VectorPromotion{
+			ObjectMeta: metav1.ObjectMeta{Name: "exec-promotion", Namespace: testNamespace},
+			Spec: konfidence.VectorPromotionSpec{
+				VectorPromotionConfigName: config.Name,
+				Source:                    templateSource("some-template"),
+				Target:                    stageTargetInLandscape("exec-stage", "exec-landscape"),
+				Vector:                    testVector,
+				Sequence:                  nextSequence(),
+				Gates:                     []konfidence.PromotionGate{},
+			},
+		}
+		Expect(k8sClient.Create(ctx, promotion)).To(Succeed())
+
+		reconcilePromotion(promotion.Name)
+		refreshPromotion(promotion)
+		Expect(observedState(promotion)).To(Equal("Succeeded"))
+
+		Expect(k8sClient.Get(ctx, types.NamespacedName{
+			Name: stage.Name, Namespace: stage.Namespace,
+		}, stage)).To(Succeed())
+		Expect(stage.Spec.Vector).To(Equal(testVector))
+	})
+})

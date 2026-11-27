@@ -9,26 +9,28 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// resolveReferences resolves the target Stage and the source vector. A
-// definitive miss is returned as a resolutionError for the Ready condition;
+// resolveReferences resolves the target Stage and the source vector.
+// A definitive miss is returned as a resolutionError for the Ready condition;
 // an empty source vector with a nil error means the source exists but has not
 // assembled a vector yet.
-func (r *VectorPromotionConfigReconciler) resolveReferences(ctx context.Context, config *konfidence.VectorPromotionConfig) (*konfidence.Stage, string, error) {
+func (r *VectorPromotionConfigReconciler) resolveReferences(
+	ctx context.Context, config *konfidence.VectorPromotionConfig,
+) (*konfidence.Stage, string, error) {
 	target, err := resolveTargetStage(ctx, r.Client, config.Namespace, config.Spec.Target)
 	if err != nil {
 		return nil, "", err
 	}
-	sourceVector, err := r.resolveSourceVector(ctx, config)
+	sourceVector, err := r.resolveSource(ctx, config)
 	if err != nil {
 		return nil, "", err
 	}
 	return target, sourceVector, nil
 }
 
-// resolveSourceVector reads the vector currently offered by the source: a
-// VectorTemplate's latest assembled vector, or the vector active on a source
-// Stage.
-func (r *VectorPromotionConfigReconciler) resolveSourceVector(ctx context.Context, config *konfidence.VectorPromotionConfig) (string, error) {
+// resolveSource reads the vector currently offered by the source.
+func (r *VectorPromotionConfigReconciler) resolveSource(
+	ctx context.Context, config *konfidence.VectorPromotionConfig,
+) (string, error) {
 	source := config.Spec.Source
 	if source.Kind == konfidence.VectorTemplateKind {
 		template := &konfidence.VectorTemplate{}

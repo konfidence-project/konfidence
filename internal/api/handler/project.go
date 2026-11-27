@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/go-logr/logr"
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/apierror"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
@@ -15,7 +16,11 @@ import (
 	stagedomain "github.com/konfidence-project/konfidence/internal/stage"
 	vectordeploymentdomain "github.com/konfidence-project/konfidence/internal/vectordeployment"
 	vectorpromotiondomain "github.com/konfidence-project/konfidence/internal/vectorpromotion"
-	"github.com/konfidence-project/konfidence/pkg/ocm/content"
+	pkgcontent "github.com/konfidence-project/konfidence/pkg/ocm/content"
+	pkgcredentials "github.com/konfidence-project/konfidence/pkg/ocm/credentials"
+	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
+	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type projectHandler struct {
@@ -26,7 +31,12 @@ type projectHandler struct {
 	artifactDeploymentRepo    artifactdeploymentdomain.Repository
 	vectorPromotionRepo       vectorpromotiondomain.Repository
 	vectorPromotionConfigRepo vectorpromotiondomain.ConfigRepository
-	ocmReader                 content.Reader
+	k8sClient                 client.Reader
+	log                       logr.Logger
+	verifier                  crypto.Verifier
+	// ocmReaderOverride bypasses per-request credential resolution when set.
+	// Used in tests to inject a mock reader.
+	ocmReaderOverride pkgcontent.Reader
 }
 
 func newProjectHandler(projectRepo projectdomain.Repository,
@@ -34,7 +44,9 @@ func newProjectHandler(projectRepo projectdomain.Repository,
 	artifactDeploymentRepo artifactdeploymentdomain.Repository, vectorDeploymentRepo vectordeploymentdomain.Repository,
 	vectorPromotionRepo vectorpromotiondomain.Repository,
 	vectorPromotionConfigRepo vectorpromotiondomain.ConfigRepository,
-	ocmReader content.Reader,
+	k8sClient client.Reader,
+	log logr.Logger,
+	verifier crypto.Verifier,
 ) *projectHandler {
 	return &projectHandler{
 		projectRepo:               projectRepo,
@@ -44,8 +56,49 @@ func newProjectHandler(projectRepo projectdomain.Repository,
 		artifactDeploymentRepo:    artifactDeploymentRepo,
 		vectorPromotionRepo:       vectorPromotionRepo,
 		vectorPromotionConfigRepo: vectorPromotionConfigRepo,
-		ocmReader:                 ocmReader,
+		k8sClient:                 k8sClient,
+		log:                       log,
+		verifier:                  verifier,
 	}
+}
+
+// buildOCMReaderForNamespace builds a content.Reader with credentials and
+// signature specs resolved from the VectorTemplate in the given namespace.
+// If no VectorTemplate exists or carries no credentials the reader runs unauthenticated.
+// Returns the override reader directly when one is set (tests only).
+func (h *projectHandler) buildOCMReaderForNamespace(ctx context.Context, namespace string) (pkgcontent.Reader, error) {
+	if h.ocmReaderOverride != nil {
+		return h.ocmReaderOverride, nil
+	}
+	vtList := &konfidence.VectorTemplateList{}
+	if err := h.k8sClient.List(ctx, vtList, client.InNamespace(namespace)); err != nil {
+		return nil, fmt.Errorf("list VectorTemplates in namespace %q: %w", namespace, err)
+	}
+
+	var creds *konfidence.Credentials
+	var vectorSpecs []crypto.SignatureSpec
+	var artifactSpecs []crypto.SignatureSpec
+	if len(vtList.Items) > 0 {
+		vt := &vtList.Items[0]
+		creds = vt.Spec.Credentials
+		vectorSpecs = crypto.SpecsFromVerify(vt.Spec.VerifyVector)
+		artifactSpecs = crypto.SpecsFromVerify(vt.Spec.VerifyArtifacts)
+	}
+
+	resolver, err := pkgcredentials.ResolverFromCredentials(ctx, h.k8sClient, namespace, creds)
+	if err != nil {
+		return nil, fmt.Errorf("resolve OCM credentials for namespace %q: %w", namespace, err)
+	}
+
+	ocmClient, err := pkgocm.NewOciClientBuilder().
+		WithLogger(h.log).
+		WithResolver(resolver).
+		Build(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("build OCI client for namespace %q: %w", namespace, err)
+	}
+
+	return pkgcontent.NewReader(ocmClient, h.verifier, resolver, vectorSpecs, artifactSpecs), nil
 }
 
 func (h *projectHandler) ListProjectsV1(ctx context.Context, _ openapi.ListProjectsV1RequestObject) (openapi.ListProjectsV1ResponseObject, error) {

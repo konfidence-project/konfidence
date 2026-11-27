@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 	"runtime"
 	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectordeployment"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"github.com/konfidence-project/konfidence/pkg/ocm/credentials"
 	cryptopkg "github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
@@ -105,35 +105,48 @@ var _ = Describe("VectorDeployment pki enabled", Ordered, Serial, func() {
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 		gomega.Expect(pkiK8sClient.Create(pkiCtx, &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{Name: pkiTestNamespace},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   pkiTestNamespace,
+				Labels: map[string]string{pkgctrl.ProjectNameLabel: "pki-project"},
+			},
 		})).To(gomega.Succeed())
+
+		// Create a Project CR so the AdapterFactory can resolve credentials and
+		// verify specs from project.Spec rather than VectorDeployment.Spec.
+		pkiProject := &konfidence.Project{
+			ObjectMeta: metav1.ObjectMeta{Name: "pki-project"},
+			Spec: konfidence.ProjectSpec{
+				Credentials: &konfidence.Credentials{
+					OCM: &konfidence.OCMCredentials{
+						Refs: []konfidence.CredentialRef{
+							{Name: pkiOCISecretName},
+							{Name: pkiSigningSecret},
+						},
+					},
+				},
+				VerifyVector:    &konfidence.Verify{Signatures: []konfidence.Signature{{Name: pkiVectorSigName}}},
+				VerifyArtifacts: &konfidence.Verify{Signatures: []konfidence.Signature{{Name: pkiArtifactSigName}}},
+			},
+		}
+		gomega.Expect(pkiK8sClient.Create(pkiCtx, pkiProject)).To(gomega.Succeed())
+		pkiProject.Status.Namespace = pkiTestNamespace
+		gomega.Expect(pkiK8sClient.Status().Update(pkiCtx, pkiProject)).To(gomega.Succeed())
 
 		gomega.Expect(pkiK8sClient.Create(pkiCtx, testocm.OCMConfigSecret(pkiSigningSecret, pkiTestNamespace,
 			testocm.Bind(pkiVectorSigName, pkiVectorKey),
 			testocm.Bind(pkiArtifactSigName, pkiArtifactKey),
 		))).To(gomega.Succeed())
 
-		ociSecret := &corev1.Secret{}
 		gomega.Expect(pkiK8sClient.Create(pkiCtx, testocm.DockerConfigSecret(pkiOCISecretName, pkiTestNamespace,
 			"user", "password", pkiRegistryEndpoint,
 		))).To(gomega.Succeed())
-		gomega.Expect(pkiK8sClient.Get(pkiCtx, types.NamespacedName{Name: pkiOCISecretName, Namespace: pkiTestNamespace}, ociSecret)).To(gomega.Succeed())
 
-		resolver, err := credentials.ResolverFromRefs(pkiCtx, pkiK8sClient, pkiTestNamespace, []credentials.Ref{{Name: pkiOCISecretName}})
+		// Build a test-side OCM client for pushing components to the registry.
+		// The controller reads credentials per-reconcile from Project.Spec.Credentials.
+		pushResolver, pushResolverErr := credentials.ResolverFromRefs(pkiCtx, pkiK8sClient, pkiTestNamespace, []credentials.Ref{{Name: pkiOCISecretName}})
+		gomega.Expect(pushResolverErr).NotTo(gomega.HaveOccurred())
+		pkiOCMClient, err = pkgocm.NewOciClientBuilder().WithLogger(ctrl.Log.WithName("pki-ocm-client")).WithResolver(pushResolver).Build(pkiCtx)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
-		pkiOCMClient, err = pkgocm.NewOciClientBuilder().WithLogger(ctrl.Log.WithName("pki-ocm-client")).WithResolver(resolver).Build(pkiCtx)
-		gomega.Expect(err).NotTo(gomega.HaveOccurred())
-
-		gomega.Expect(os.Setenv(vectordeployment.VectorSignaturesEnv, pkiVectorSigName)).To(gomega.Succeed())
-		gomega.Expect(os.Setenv(vectordeployment.ArtifactSignaturesEnv, pkiArtifactSigName)).To(gomega.Succeed())
-		gomega.Expect(os.Setenv(vectordeployment.CredentialsSecretNameEnv, pkiSigningSecret)).To(gomega.Succeed())
-		gomega.Expect(os.Setenv(vectordeployment.CredentialsSecretNsEnv, pkiTestNamespace)).To(gomega.Succeed())
-		DeferCleanup(func() {
-			gomega.Expect(os.Unsetenv(vectordeployment.VectorSignaturesEnv)).To(gomega.Succeed())
-			gomega.Expect(os.Unsetenv(vectordeployment.ArtifactSignaturesEnv)).To(gomega.Succeed())
-			gomega.Expect(os.Unsetenv(vectordeployment.CredentialsSecretNameEnv)).To(gomega.Succeed())
-			gomega.Expect(os.Unsetenv(vectordeployment.CredentialsSecretNsEnv)).To(gomega.Succeed())
-		})
 
 		pkiVerifier, pkiVerifierErr := cryptopkg.NewVerifierBuilder().
 			WithParallelism(cryptopkg.NewLimiter(0)).
@@ -142,8 +155,7 @@ var _ = Describe("VectorDeployment pki enabled", Ordered, Serial, func() {
 		gomega.Expect(pkiVerifierErr).NotTo(gomega.HaveOccurred())
 
 		gomega.Expect(vectordeployment.SetupControllers(pkiCtx, pkiManager, ctrl.Log, vectordeployment.Options{
-			OCISecret: ociSecret,
-			Verifier:  pkiVerifier,
+			Verifier: pkiVerifier,
 		})).To(gomega.Succeed())
 	})
 
@@ -164,7 +176,9 @@ var _ = Describe("VectorDeployment pki enabled", Ordered, Serial, func() {
 		)
 
 		vectorURL := fmt.Sprintf("http://%s//github.com/konfidence-project/pki-test/vector-signed:v1.0.0", pkiRegistryEndpoint)
-		vd := createVectorDeployment(pkiCtx, pkiK8sClient, "vd-pki-signed", pkiTestNamespace, vectorURL)
+		vd := createVectorDeployment(pkiCtx, pkiK8sClient, "vd-pki-signed", pkiTestNamespace, konfidence.VectorDeploymentSpec{
+			Vector: vectorURL,
+		})
 
 		actualVD := &konfidence.VectorDeployment{}
 		gomega.Eventually(func(g gomega.Gomega) {
@@ -175,7 +189,8 @@ var _ = Describe("VectorDeployment pki enabled", Ordered, Serial, func() {
 
 	It("should not set VectorDownloadedCondition when vector has no signature", func() {
 		vd := pushUnsignedVectorAndCreateDeployment(pkiCtx, pkiOCMClient, pkiK8sClient,
-			pkiRegistryEndpoint, "pki-test", "vector-unsigned", pkiTestNamespace)
+			pkiRegistryEndpoint, "pki-test", "vector-unsigned", pkiTestNamespace,
+		)
 
 		actualVD := &konfidence.VectorDeployment{}
 		gomega.Consistently(func(g gomega.Gomega) {
@@ -254,22 +269,41 @@ var _ = Describe("VectorDeployment pki disabled", Ordered, Serial, func() {
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 		gomega.Expect(noVerifyK8sClient.Create(noVerifyCtx, &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{Name: noVerifyNamespace},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   noVerifyNamespace,
+				Labels: map[string]string{pkgctrl.ProjectNameLabel: "no-verify-project"},
+			},
 		})).To(gomega.Succeed())
 
-		ociSecret := &corev1.Secret{}
+		// Create a Project CR so the AdapterFactory can resolve credentials from
+		// project.Spec. No VerifyVector/VerifyArtifacts — verification is disabled.
+		noVerifyProject := &konfidence.Project{
+			ObjectMeta: metav1.ObjectMeta{Name: "no-verify-project"},
+			Spec: konfidence.ProjectSpec{
+				Credentials: &konfidence.Credentials{
+					OCM: &konfidence.OCMCredentials{
+						Refs: []konfidence.CredentialRef{{Name: noVerifyOCISecretName}},
+					},
+				},
+			},
+		}
+		gomega.Expect(noVerifyK8sClient.Create(noVerifyCtx, noVerifyProject)).To(gomega.Succeed())
+		noVerifyProject.Status.Namespace = noVerifyNamespace
+		gomega.Expect(noVerifyK8sClient.Status().Update(noVerifyCtx, noVerifyProject)).To(gomega.Succeed())
+
 		gomega.Expect(noVerifyK8sClient.Create(noVerifyCtx, testocm.DockerConfigSecret(noVerifyOCISecretName, noVerifyNamespace,
 			"user", "password", noVerifyRegistryEndpoint,
 		))).To(gomega.Succeed())
-		gomega.Expect(noVerifyK8sClient.Get(noVerifyCtx,
-			types.NamespacedName{Name: noVerifyOCISecretName, Namespace: noVerifyNamespace}, ociSecret)).To(gomega.Succeed())
 
-		resolver, err := credentials.ResolverFromRefs(noVerifyCtx, noVerifyK8sClient, noVerifyNamespace, []credentials.Ref{{Name: noVerifyOCISecretName}})
-		gomega.Expect(err).NotTo(gomega.HaveOccurred())
-		noVerifyOCMClient, err = pkgocm.NewOciClientBuilder().WithLogger(ctrl.Log.WithName("no-verify-ocm-client")).WithResolver(resolver).Build(noVerifyCtx)
+		// Build a test-side OCM client for pushing components to the registry.
+		// The controller reads credentials per-reconcile from Project.Spec.Credentials.
+		pushResolver, pushResolverErr := credentials.ResolverFromRefs(
+			noVerifyCtx, noVerifyK8sClient, noVerifyNamespace, []credentials.Ref{{Name: noVerifyOCISecretName}})
+		gomega.Expect(pushResolverErr).NotTo(gomega.HaveOccurred())
+		noVerifyOCMClient, err = pkgocm.NewOciClientBuilder().WithLogger(ctrl.Log.WithName("no-verify-ocm-client")).WithResolver(pushResolver).Build(noVerifyCtx)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-		// No signature env vars set — verification is disabled via empty specs.
+		// No VerifyVector/VerifyArtifacts on the Project spec - verification is disabled.
 		noVerifyVerifier, noVerifyVerifierErr := cryptopkg.NewVerifierBuilder().
 			WithParallelism(cryptopkg.NewLimiter(0)).
 			WithCache(1024, 30*time.Minute).
@@ -277,8 +311,7 @@ var _ = Describe("VectorDeployment pki disabled", Ordered, Serial, func() {
 		gomega.Expect(noVerifyVerifierErr).NotTo(gomega.HaveOccurred())
 
 		gomega.Expect(vectordeployment.SetupControllers(noVerifyCtx, noVerifyManager, ctrl.Log, vectordeployment.Options{
-			OCISecret: ociSecret,
-			Verifier:  noVerifyVerifier,
+			Verifier: noVerifyVerifier,
 		})).To(gomega.Succeed())
 	})
 
@@ -288,7 +321,8 @@ var _ = Describe("VectorDeployment pki disabled", Ordered, Serial, func() {
 
 	It("should set VectorDownloadedCondition=True for an unsigned vector when verification is disabled", func() {
 		vd := pushUnsignedVectorAndCreateDeployment(noVerifyCtx, noVerifyOCMClient, noVerifyK8sClient,
-			noVerifyRegistryEndpoint, "no-verify-test", "vector", noVerifyNamespace)
+			noVerifyRegistryEndpoint, "no-verify-test", "vector", noVerifyNamespace,
+		)
 
 		actualVD := &konfidence.VectorDeployment{}
 		gomega.Eventually(func(g gomega.Gomega) {
@@ -311,10 +345,12 @@ func cleanupVectorDeploymentNamespace(
 	}, timeout, interval).Should(gomega.Succeed())
 }
 
-func createVectorDeployment(ctx context.Context, k8sClient client.Client, name, namespace, vectorURL string) *konfidence.VectorDeployment {
+func createVectorDeployment(
+	ctx context.Context, k8sClient client.Client, name, namespace string, spec konfidence.VectorDeploymentSpec,
+) *konfidence.VectorDeployment {
 	vd := &konfidence.VectorDeployment{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
-		Spec:       konfidence.VectorDeploymentSpec{Vector: vectorURL},
+		Spec:       spec,
 	}
 	gomega.Expect(k8sClient.Create(ctx, vd)).To(gomega.Succeed())
 	return vd
@@ -329,5 +365,9 @@ func pushUnsignedVectorAndCreateDeployment(
 	testocm.PushComponent(ctx, ocmClient, artifactRef, nil)
 	testocm.PushVector(ctx, ocmClient, vectorRef, []compref.Ref{artifactRef}, "latest", testocm.SampleVectorConfig())
 	vectorURL := fmt.Sprintf("http://%s//github.com/konfidence-project/%s/%s:v1.0.0", registryEndpoint, project, vectorName)
-	return createVectorDeployment(ctx, k8sClient, fmt.Sprintf("vd-%s-%s", project, vectorName), namespace, vectorURL)
+	return createVectorDeployment(ctx, k8sClient, fmt.Sprintf("vd-%s-%s", project, vectorName), namespace,
+		konfidence.VectorDeploymentSpec{
+			Vector: vectorURL,
+		},
+	)
 }

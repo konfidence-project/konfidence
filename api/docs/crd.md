@@ -348,6 +348,7 @@ repository access and signing/verification key material.
 
 
 _Appears in:_
+- [ProjectSpec](#projectspec)
 - [VectorTemplateSpec](#vectortemplatespec)
 
 | Field | Description | Default | Validation |
@@ -829,6 +830,9 @@ _Appears in:_
 | `namespacePolicy` _[NamespacePolicy](#namespacepolicy)_ | NamespacePolicy controls how the project namespace is taken over. Create<br />(the default) creates it and errors on conflict; Adopt takes over an<br />existing namespace and requires both that namespace to already exist and<br />spec.namespace to be set, so the adopted namespace is named explicitly. It<br />is immutable once the Project exists, because it only governs how the<br />namespace is first acquired and has no effect once ownership is settled. | Create | Enum: [Create Adopt] <br />Optional: \{\} <br /> |
 | `deletionPolicy` _[DeletionPolicy](#deletionpolicy)_ | DeletionPolicy controls what happens to the project namespace when the<br />Project is deleted. Orphan (the default) keeps the namespace and strips<br />its management labels; Delete removes the namespace with the Project. | Orphan | Enum: [Delete Orphan] <br />Optional: \{\} <br /> |
 | `roleBindings` _object (keys:string, values:[Subjects](#subjects))_ | RoleBindings grants project roles to callers. It maps a role name to the<br />list of subjects that hold that role; a caller holds the role if any<br />subject in the list matches (OR). The role names are a fixed, well-known<br />set for now (for example "admin", "pm", "dev"), but the field is a map so<br />the set can be extended without a schema change. See the Project<br />multi-tenancy ADR for the meaning of each role and the authorization flow.<br />RoleBindings is currently schema-only: no authorization is enforced yet. |  | MaxProperties: 32 <br />Optional: \{\} <br /> |
+| `credentials` _[Credentials](#credentials)_ | Credentials supplies credentials for OCM repositories accessed within this project.<br />Secrets must be in the project namespace. If omitted, the OCM client runs<br />unauthenticated (suitable for public registries). |  | Optional: \{\} <br /> |
+| `verifyVector` _[Verify](#verify)_ | VerifyVector lists candidate signatures evaluated against deployment vectors<br />fetched for this project. If omitted, vector signature verification is disabled. |  | Optional: \{\} <br /> |
+| `verifyArtifacts` _[Verify](#verify)_ | VerifyArtifacts lists candidate signatures evaluated against every artifact<br />referenced by deployment vectors in this project. If omitted, artifact<br />signature verification is disabled. |  | Optional: \{\} <br /> |
 
 
 ### ProjectStatus
@@ -2120,6 +2124,7 @@ descriptor. Absence on a spec disables verification.
 
 
 _Appears in:_
+- [ProjectSpec](#projectspec)
 - [VectorTemplateSpec](#vectortemplatespec)
 
 | Field | Description | Default | Validation |

@@ -21,13 +21,19 @@ func (h *projectHandler) GetVectorContentV1(ctx context.Context,
 		return nil, apierror.NewUnauthorized()
 	}
 
-	if _, err := h.resolveProjectNamespace(ctx, identity, request.ProjectId); err != nil {
+	namespace, err := h.resolveProjectNamespace(ctx, identity, request.ProjectId)
+	if err != nil {
 		return nil, err
+	}
+
+	ocmReader, err := h.buildOCMReaderForNamespace(ctx, namespace)
+	if err != nil {
+		return nil, apierror.NewInternal(err)
 	}
 
 	results := make([]openapi.VectorContent, 0, len(request.Params.Refs))
 	for _, rawOcmRef := range request.Params.Refs {
-		vectorContent, err := h.ocmReader.GetVectorContent(ctx, rawOcmRef)
+		vectorContent, err := ocmReader.GetVectorContent(ctx, rawOcmRef)
 		if err != nil {
 			if errors.Is(err, kompref.ErrInvalidComponentReference) {
 				return nil, apierror.NewBadRequest(fmt.Sprintf("invalid ref %q: %s", rawOcmRef, err))
@@ -56,11 +62,17 @@ func (h *projectHandler) GetArtifactContentV1(ctx context.Context,
 		return nil, apierror.NewUnauthorized()
 	}
 
-	if _, err := h.resolveProjectNamespace(ctx, identity, request.ProjectId); err != nil {
+	namespace, err := h.resolveProjectNamespace(ctx, identity, request.ProjectId)
+	if err != nil {
 		return nil, err
 	}
 
-	artifactContent, err := h.ocmReader.GetArtifactContent(ctx, request.Params.Ref)
+	ocmReader, err := h.buildOCMReaderForNamespace(ctx, namespace)
+	if err != nil {
+		return nil, apierror.NewInternal(err)
+	}
+
+	artifactContent, err := ocmReader.GetArtifactContent(ctx, request.Params.Ref)
 	if err != nil {
 		if errors.Is(err, kompref.ErrInvalidComponentReference) {
 			return nil, apierror.NewBadRequest(fmt.Sprintf("invalid ref %q: %s", request.Params.Ref, err))
@@ -122,11 +134,17 @@ func (h *projectHandler) GetVectorDiffV1(ctx context.Context,
 		return nil, apierror.NewUnauthorized()
 	}
 
-	if _, err := h.resolveProjectNamespace(ctx, identity, request.ProjectId); err != nil {
+	namespace, err := h.resolveProjectNamespace(ctx, identity, request.ProjectId)
+	if err != nil {
 		return nil, err
 	}
 
-	leftVC, err := h.ocmReader.GetVectorContent(ctx, request.Params.Left)
+	ocmReader, err := h.buildOCMReaderForNamespace(ctx, namespace)
+	if err != nil {
+		return nil, apierror.NewInternal(err)
+	}
+
+	leftVC, err := ocmReader.GetVectorContent(ctx, request.Params.Left)
 	if err != nil {
 		if errors.Is(err, pkgocm.ErrNotFound) {
 			return nil, apierror.NewNotFound("left vector", request.Params.Left)
@@ -137,7 +155,7 @@ func (h *projectHandler) GetVectorDiffV1(ctx context.Context,
 		return nil, apierror.NewInternal(err)
 	}
 
-	rightVC, err := h.ocmReader.GetVectorContent(ctx, request.Params.Right)
+	rightVC, err := ocmReader.GetVectorContent(ctx, request.Params.Right)
 	if err != nil {
 		if errors.Is(err, pkgocm.ErrNotFound) {
 			return nil, apierror.NewNotFound("right vector", request.Params.Right)

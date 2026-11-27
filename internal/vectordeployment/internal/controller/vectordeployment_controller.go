@@ -49,18 +49,31 @@ const (
 // the re-salted name.
 var errArtifactDeploymentCollision = errors.New("artifact deployment name collision; salt bumped, requeueing")
 
+// AdapterFactory builds a per-reconcile VectorOcmPort from a VectorDeployment.
+type AdapterFactory func(ctx context.Context, vd *konfidence.VectorDeployment) (VectorOcmPort, error)
+
 // VectorDeploymentReconciler reconciles a VectorDeployment object
 type VectorDeploymentReconciler struct {
 	client.Client
-	Scheme                                    *runtime.Scheme
-	Recorder                                  events.EventRecorder
-	OcmAdapter                                VectorOcmPort
+	Scheme   *runtime.Scheme
+	Recorder events.EventRecorder
+	// AdapterFactory builds the OCM adapter per reconcile from the owning Project.Spec.Credentials
+	// and signature specs. Wired by setup.go.
+	AdapterFactory                            AdapterFactory
 	jobs                                      *jobRegistry
 	MaxArtifactManifestDownloadsPerDeployment int
 	MaxGlobalArtifactManifestDownloads        int
 	manifestPollInterval                      time.Duration
 	manifestDownloadTimeout                   time.Duration
 	manifestDownloadLimiter                   *artifactManifestDownloadLimiter
+}
+
+// buildAdapter returns the per-reconcile OCM adapter for the given VectorDeployment.
+func (r *VectorDeploymentReconciler) buildAdapter(ctx context.Context, vd *konfidence.VectorDeployment) (VectorOcmPort, error) {
+	if r.AdapterFactory == nil {
+		return nil, fmt.Errorf("AdapterFactory is not set on VectorDeploymentReconciler")
+	}
+	return r.AdapterFactory(ctx, vd)
 }
 
 type resolvedVector struct {
@@ -93,6 +106,8 @@ func (l *artifactManifestDownloadLimiter) acquire(ctx context.Context) (func(), 
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectordeployments/finalizers,verbs=update
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=artifactdeployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectordata,verbs=get;list;watch;create;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=projects,verbs=get
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 
@@ -117,7 +132,12 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, fmt.Errorf("failed to parse vector reference %s: %w", vectorDeployment.Spec.Vector, err)
 	}
 
-	resolvedVector, err := r.resolveVector(ctx, vectorDeployment, *vectorRef)
+	adapter, err := r.buildAdapter(ctx, vectorDeployment)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("build OCM adapter for %s: %w", vectorDeployment.Name, err)
+	}
+
+	resolvedVector, err := r.resolveVector(ctx, vectorDeployment, *vectorRef, adapter)
 	if err != nil {
 		// The status patch further down is never reached on this path, so persist a stall here.
 		if stallOnPermanentError(vectorDeployment, err) {
@@ -146,7 +166,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	manifestResult, manifestRequeueAfter := r.resolveArtifactManifestsAsync(req.NamespacedName, vectorDeployment.Generation,
-		vectorDeployment.UID, resolvedVector.artifactRefs)
+		vectorDeployment.UID, resolvedVector.artifactRefs, adapter)
 	if manifestRequeueAfter > 0 {
 		if !isReadyForCurrentGeneration(vectorDeployment) {
 			setReadyConditionFalse(vectorDeployment, konfidence.VectorReadyReasonArtifactDeploymentsNotReady, "Waiting for download of artifactManifests")
@@ -217,7 +237,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	// DeploymentResults. This step is a singleton action per vector.
 	// The runtime-specific implementor (e.g. the in-tree Kubernetes adapter in `internal/vectordata`)
 	// watches VectorData and materializes it on the target runtime (e.g. as a ConfigMap).
-	resolvedVector, err = r.ensureVectorDataConfigResolved(ctx, vectorDeployment, *vectorRef, resolvedVector)
+	resolvedVector, err = r.ensureVectorDataConfigResolved(ctx, vectorDeployment, *vectorRef, resolvedVector, adapter)
 	if err != nil {
 		if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
 			if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
@@ -623,11 +643,12 @@ func (r *VectorDeploymentReconciler) resolveVector(
 	ctx context.Context,
 	vd *konfidence.VectorDeployment,
 	vectorRef compref.Ref,
+	adapter VectorOcmPort,
 ) (resolvedVector, error) {
 	var resolved resolvedVector
 
 	if vd.Status.ResolvedVectorOcm == "" {
-		descr, err := r.OcmAdapter.GetVectorDescriptor(ctx, vectorRef)
+		descr, err := adapter.GetVectorDescriptor(ctx, vectorRef)
 		if err != nil {
 			return resolvedVector{}, fmt.Errorf("failed to fetch vector OCM for vector deployment %s: %w", vd.Name, err)
 		}
@@ -676,6 +697,7 @@ func (r *VectorDeploymentReconciler) ensureVectorDataConfigResolved(
 	vd *konfidence.VectorDeployment,
 	vectorRef compref.Ref,
 	resolved resolvedVector,
+	adapter VectorOcmPort,
 ) (resolvedVector, error) {
 	if resolved.configResolved {
 		return resolved, nil
@@ -688,7 +710,7 @@ func (r *VectorDeploymentReconciler) ensureVectorDataConfigResolved(
 	} else if !apierrors.IsNotFound(err) {
 		return resolvedVector{}, fmt.Errorf("get VectorData %s/%s: %w", vd.Namespace, vd.Name, err)
 	}
-	descr, err := r.OcmAdapter.GetVectorDescriptor(ctx, vectorRef)
+	descr, err := adapter.GetVectorDescriptor(ctx, vectorRef)
 	if err != nil {
 		return resolvedVector{}, fmt.Errorf("refetch OCM config blob: %w", err)
 	}
@@ -700,7 +722,7 @@ func (r *VectorDeploymentReconciler) ensureVectorDataConfigResolved(
 // resolveArtifactManifestsAsync returns a positive requeue duration while a
 // background job is running or while a failed job is in retry backoff.
 func (r *VectorDeploymentReconciler) resolveArtifactManifestsAsync(nn types.NamespacedName, generation int64,
-	uid types.UID, artifactReferences []compref.Ref) (artifactManifestResult, time.Duration) {
+	uid types.UID, artifactReferences []compref.Ref, adapter VectorOcmPort) (artifactManifestResult, time.Duration) {
 	if len(artifactReferences) == 0 {
 		// Remove any registered job and retry state so an obsolete result cannot
 		// be applied later.
@@ -732,7 +754,7 @@ func (r *VectorDeploymentReconciler) resolveArtifactManifestsAsync(nn types.Name
 
 	// Do not capture storage owned by the current reconciliation after it returns.
 	launched, retryAfter := r.jobs.launch(nn, generation, uid, referenceKeys, func(ctx context.Context) artifactManifestResult {
-		return r.downloadArtifactManifests(ctx, references)
+		return r.downloadArtifactManifests(ctx, references, adapter)
 	})
 
 	if retryAfter > 0 {
@@ -745,7 +767,9 @@ func (r *VectorDeploymentReconciler) resolveArtifactManifestsAsync(nn types.Name
 	return artifactManifestResult{}, r.manifestPollInterval
 }
 
-func (r *VectorDeploymentReconciler) downloadArtifactManifests(ctx context.Context, artifactReferences []compref.Ref) artifactManifestResult {
+func (r *VectorDeploymentReconciler) downloadArtifactManifests(
+	ctx context.Context, artifactReferences []compref.Ref, adapter VectorOcmPort,
+) artifactManifestResult {
 	if len(artifactReferences) == 0 {
 		return artifactManifestResult{}
 	}
@@ -780,7 +804,7 @@ func (r *VectorDeploymentReconciler) downloadArtifactManifests(ctx context.Conte
 			downloadCtx, cancel := context.WithTimeout(poolCtx, r.manifestDownloadTimeout)
 			defer cancel()
 
-			manifest, err := r.OcmAdapter.GetArtifactManifestByReference(downloadCtx, artifactRef)
+			manifest, err := adapter.GetArtifactManifestByReference(downloadCtx, artifactRef)
 			if err != nil {
 				return fmt.Errorf("failed to fetch artifact component version for %q: %w", artifactRef.String(), err)
 			}
