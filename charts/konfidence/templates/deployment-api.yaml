@@ -73,8 +73,11 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
           {{- $db := eq .Values.api.session.storageType "db-pg" }}
-          {{- if or .Values.api.oidc.enabled $db .Values.api.env }}
           env:
+            - name: KONFIDENCE_API_OCM_CACHE_SIZE
+              value: {{ .Values.api.ocmCache.size | quote }}
+            - name: KONFIDENCE_API_OCM_CACHE_TAG_TTL
+              value: {{ .Values.api.ocmCache.tagTTL | quote }}
             {{- if $db }}
             - name: API_DB_CONNECTION
               valueFrom:
@@ -92,7 +95,6 @@ spec:
             {{- with .Values.api.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-          {{- end }}
           {{- with .Values.api.volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

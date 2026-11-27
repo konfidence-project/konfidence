@@ -96,6 +96,16 @@ api:
     # -- Grace period for in-flight requests on shutdown.
     shutdownTimeout: "15s"
 
+  # In-process, per-replica cache for OCM vector/artifact content read from the OCI registry.
+  ocmCache:
+    # -- LRU cache capacity per OCM content type, for vector and artifact entries
+    # respectively. Each cache holds up to this many entries. Set to 0 to disable
+    # the cache and read from the registry on every request.
+    size: 500
+    # -- How long entries for mutable alias tags (e.g. "latest", "main") are
+    # served before a refetch. Digest-pinned and semver refs never expire.
+    tagTTL: 5m
+
   oidc:
     # -- Enable login through an OpenID Connect provider. When true,
     # `issuerURL` must be set or the API server refuses to start.
