@@ -1,0 +1,11 @@
+# CI changes require review by project maintainers. Enable required code-owner
+# reviews in the repository ruleset; CODEOWNERS alone does not enforce approval.
+# The team must have explicit write access to this repository.
+/.github/ @konfidence-project/kden-maintainer
+/Makefile @konfidence-project/kden-maintainer
+/hack/ @konfidence-project/kden-maintainer
+/scripts/ @konfidence-project/kden-maintainer
+/bin/ @konfidence-project/kden-maintainer
+/package.json @konfidence-project/kden-maintainer
+/pnpm-lock.yaml @konfidence-project/kden-maintainer
+/.goreleaser* @konfidence-project/kden-maintainer

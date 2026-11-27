@@ -2,11 +2,15 @@ name: Dependabot Automerge
 
 on: pull_request_target
 
+permissions: {}
+
 jobs:
   automerge:
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     permissions:
       contents: read
       pull-requests: read
-    uses: konfidence-project/.github/.github/workflows/dependabot-automerge.yaml@main
-    secrets: inherit
+    # Metadata only; scoped bot approval uses this repo's automation environment.
+    uses: konfidence-project/.github/.github/workflows/dependabot-automerge.yaml@ef25064d200c2da0789c100878a4ee29a147518d # v5.0.0
+    secrets:
+      KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
